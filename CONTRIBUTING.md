@@ -15,3 +15,10 @@ To fork `NuLattice`, simply click the button on the top right of [the main repos
 
 The button is highlighted in red. This creates a new repository forked from `NuLattice` at the url `https://github.com/[your Github username]/NuLattice`. You can modify the fork however you like, including adding collaborators, and you will use the fork to contribute your developments and improvements back to `NuLattice` once they are ready (see below).
 
+Now that you have a fork of `NuLattice`, simply clone the remote repository:
+```
+git clone https://github.com/[your Github username]/NuLattice
+```
+to obtain a local repository that you can develop.
+
+
