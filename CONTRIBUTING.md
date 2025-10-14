@@ -21,4 +21,18 @@ git clone https://github.com/[your Github username]/NuLattice
 ```
 to obtain a local repository that you can develop.
 
+## Developing a branch
+
+We strongly encourage contributors to create new branches for their work. Creating a branch to develop a new feature allows the `main` branch of your fork to be easily synchronized with the main `NuLattice` `main` branch. This can simplify the process of merging back to the main `NuLattice` repository significantly.
+
+To work with a new branch for a feature, create the branch in your local repository:
+```
+git checkout -b [feature branch name]
+```
+and push the branch to the Github remote:
+```
+git push --set-upstream origin [feature branch name]
+```
+
+You can then develop new features for `NuLattice` following standard practices. If you are unfamiliar with `git`, consider reading the [Github git basics guide](https://github.com/git-guides#learning-git-basics).
 
