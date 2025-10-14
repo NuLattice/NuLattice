@@ -69,3 +69,19 @@ Once your changes are ready to be made public, push them to `NuLattice`:
 git push -u origin [feature branch name]
 ```
 
+## Creating a pull request
+
+Once you have developed a new feature, fixed a bug, or optimized a library, your fork of `NuLattice` will be ahead of the main `NuLattice` repository. (It may also be behind by other features, but this will be handled in the pull request.) To bring these changes back into `NuLattice`, you must navigate to your Github fork of `NuLattice` (`https://github.com/[your Github username]/NuLattice`) and open a pull request with the main project:
+
+![Starting a pull request](contributing/pull_request.png "How to start a pull request")
+
+There may be multiple options available to do this. Two are highlighted in red.
+
+This will bring you to a new page where you can explain what your pull request is contributing to `NuLattice`:
+
+![Writing a pull request](contributing/pull_request_creation.png "How to define a pull request")
+
+Ensure at this stage that your pull request is merging back into `NuLattice/NuLattice`, the `main` branch, and that you provide a useful title and description of the pull request.
+
+Your pull request will require the review of a maintainer of `NuLattice` and will be open to comments from the public. We aim to keep the barrier to contribute to `NuLattice` low, so the review process will primarily be to allow the maintainers to understand what exactly is being contributed.
+
