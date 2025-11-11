@@ -835,14 +835,14 @@ def csr_matrix_tolist_2body(op_csr,lookup2b):
     """
     keys=[]
     vals=[]
-    time0= time.time()
+    
     for key, value in lookup2b.items():
         keys.append(key)
         vals.append(value)
 
     inverse_lookup = dict(zip(vals,keys))
 
-    (rows, cols, vals) = find(op_csr)
+    (rows, cols, vals) = sparse.find(op_csr)
     
 #     vals = np.real(vals)
  
@@ -899,14 +899,14 @@ def csr_matrix_tolist_3body(op_csr,lookup3b):
     """
     keys=[]
     vals=[]
-    time0= time.time()
+    
     for key, value in lookup3b.items():
         keys.append(key)
         vals.append(value)
 
     inverse_lookup = dict(zip(vals,keys))
 
-    (rows, cols, vals) = find(op_csr)
+    (rows, cols, vals) = sparse.find(op_csr)
     
 #     vals = np.real(vals)
  
@@ -949,4 +949,3 @@ def add_3body_ops(ops, my_basis, weights=None):
         op_csr += ww[i]*get_csr_3b_op_in_3b_basis(lookup3b,ops[i])    
     
     return csr_matrix_tolist_3body(op_csr,lookup3b)
-
