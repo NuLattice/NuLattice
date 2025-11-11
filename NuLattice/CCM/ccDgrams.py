@@ -12,7 +12,7 @@ from opt_einsum import contract
 
 def v_ppph_dgrams(v_ppph, t1, t2):
     """
-    Calculates all 6 of the diagrams that use v_pppp using the fact that it is sparse
+    Calculates all 6 of the diagrams that use v_ppph using the fact that it is sparse
 
     :param v_ppph:  nonzeroes of the two body interaction matrix V^{ab}_{ck}
     :type v_ppph:   list[(int, int, int, int, float)]
