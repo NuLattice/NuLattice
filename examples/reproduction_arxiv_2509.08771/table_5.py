@@ -17,7 +17,7 @@ nstat =  len(my_basis)
 
 # Flag to set whether we evaluate IMSRG(2)
 # IMSRG(2) is the most expensive method to compute
-with_imsrg2 = True
+with_imsrg2 = False
 
 if with_imsrg2:
     print("Warning: Evaluating IMSRG(2) results for L=3. This will take 16 GB of memory and 10s of hours.")

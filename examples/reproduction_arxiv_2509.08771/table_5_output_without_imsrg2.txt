@@ -1,0 +1,5 @@
+Skipping IMSRG(2) because it is expensive. Set "with_imsrg2 = True" to also evaluate IMSRG(2) results.
+a             3He FCI       3He IMSRG(2)  3He CCSD      4He FCI       4He IMSRG(2)  4He CCSD      
+2.5           -17.4         -             -15.7         -31.1         -             -30.09        
+2.0           -17.65        -             -13.23        -32.99        -             -29.83        
+1.7           -16.26        -             -6.68         -34.49        -             -29.37        
