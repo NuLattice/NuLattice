@@ -1,5 +1,5 @@
 import sys, pathlib
-sys.path.append(str(pathlib.Path(__file__).parent / ".."))
+sys.path.append(str(pathlib.Path(__file__).parent / ".." / ".."))
 import NuLattice.lattice as lat
 import NuLattice.references as ref
 import NuLattice.CCM.coupled_cluster as ccm
