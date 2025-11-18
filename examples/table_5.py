@@ -1,5 +1,5 @@
-import sys, pathlib, os
-sys.path.append(str(pathlib.Path(os.path.abspath("")) / ".."))
+import sys, pathlib
+sys.path.append(str(pathlib.Path(__file__).parent / ".."))
 import NuLattice.lattice as lat
 import NuLattice.references as ref
 import NuLattice.CCM.coupled_cluster as ccm
@@ -7,12 +7,22 @@ import NuLattice.FCI.few_body_diagonalization as fbd
 from NuLattice.IMSRG import normal_ordering
 from NuLattice.IMSRG import ode_solver
 from scipy.sparse.linalg import eigsh as arpack_eigsh
+import numpy as np
 
 myL = 3
 params = [[2.5, -9, 6], [2.0, -8, 5.5], [1.7, -7, 4.4]]
 lattice = lat.get_lattice(myL)
 my_basis = lat.get_sp_basis(myL)
 nstat =  len(my_basis)
+
+# Flag to set whether we evaluate IMSRG(2)
+# IMSRG(2) is the most expensive method to compute
+with_imsrg2 = True
+
+if with_imsrg2:
+    print("Warning: Evaluating IMSRG(2) results for L=3. This will take 16 GB of memory and a dozen hours.")
+else:
+    print("Skipping IMSRG(2) because it is expensive. Set \"with_imsrg2 = True\" to also evaluate IMSRG(2) results.")
 
 he3_fci_ens = []
 he4_fci_ens = []
@@ -44,7 +54,7 @@ for i in params:
 
     k_eig=1
     vals, vecs = arpack_eigsh(H3_csr_mat, k=k_eig, which='SA')
-    he3_fci_ens.append(vals[0] * phys_unit)
+    he3_fci_ens.append(np.round(vals[0] * phys_unit, 2))
 
     # Compute He4
     numpart=4
@@ -59,7 +69,7 @@ for i in params:
     
     k_eig=1
     vals, vecs = arpack_eigsh(H4_csr_mat, k=k_eig, which='SA')
-    he4_fci_ens.append(vals[0] * phys_unit)
+    he4_fci_ens.append(np.round(vals[0] * phys_unit, 2))
 
     #CCSD
     #Compute 3He
@@ -69,7 +79,7 @@ for i in params:
     corrEn, t1, t2 = ccm.ccsd_solver(fock_mats, two_body_int, eps = 1.e-8, maxSteps = 100, 
                                 max_diis = 10)
     
-    he3_ccsd_ens.append((corrEn + refEn) * phys_unit)
+    he3_ccsd_ens.append(np.round((corrEn + refEn) * phys_unit, 2))
 
     #Compute 4He
     refEn, fock_mats, two_body_int = ccm.get_norm_ordered_ham(
@@ -78,27 +88,41 @@ for i in params:
     corrEn, t1, t2 = ccm.ccsd_solver(fock_mats, two_body_int, eps = 1.e-8, maxSteps = 100, 
                                 max_diis = 10)
     
-    he4_ccsd_ens.append((corrEn + refEn) * phys_unit)
+    he4_ccsd_ens.append(np.round((corrEn + refEn) * phys_unit, 2))
 
     
     #IMSRG(2)
     #Compute 3He
-    occs = normal_ordering.create_occupations(my_basis, ref.ref_3He_gs)
-    e0, f, gamma = normal_ordering.compute_normal_ordered_hamiltonian_no2b(
-                    occs, myTkin, mycontact, my3body
-                   )
-    e_imsrg, integration_data = ode_solver.solve_imsrg2(occs, e0, f, gamma, s_max=100, eta_criterion=1e-3)
+    if with_imsrg2:
+        occs = normal_ordering.create_occupations(my_basis, ref.ref_3He_gs)
+        e0, f, gamma = normal_ordering.compute_normal_ordered_hamiltonian_no2b(
+                        occs, myTkin, mycontact, my3body
+                    )
+        e_imsrg, integration_data = ode_solver.solve_imsrg2(occs, e0, f, gamma, s_max=100, eta_criterion=1e-3)
+        e_imsrg = np.round(e_imsrg, 2)
+    else:
+        e_imsrg = "-"
     he3_imsrg_ens.append(e_imsrg)
 
     #Compute 4He
-    occs = normal_ordering.create_occupations(my_basis, ref.ref_4He_gs)
-    e0, f, gamma = normal_ordering.compute_normal_ordered_hamiltonian_no2b(
-                    occs, myTkin, mycontact, my3body
-                   )
-    e_imsrg, integration_data = ode_solver.solve_imsrg2(occs, e0, f, gamma, s_max=100, eta_criterion=1e-3)
+    if with_imsrg2:
+        occs = normal_ordering.create_occupations(my_basis, ref.ref_4He_gs)
+        e0, f, gamma = normal_ordering.compute_normal_ordered_hamiltonian_no2b(
+                        occs, myTkin, mycontact, my3body
+                    )
+        e_imsrg, integration_data = ode_solver.solve_imsrg2(occs, e0, f, gamma, s_max=100, eta_criterion=1e-3)
+        e_imsrg = np.round(e_imsrg, 2)
+    else:
+        e_imsrg = "-"
     he4_imsrg_ens.append(e_imsrg)
 
 #Table 5
-print('a\t 3He FCI\t 3He IMSRG(2)\t 3He CCSD\t 4He FCI\t 4He IMSRG(2)\t 4He CCSD')
+print("".join(
+    ["{:<14}".format(x) for x in ["a", "3He FCI", "3He IMSRG(2)", "3He CCSD", "4He FCI", "4He IMSRG(2)", "4He CCSD"]]
+))
 for i in range(3):
-    print(f'{params[i][0]}\t{he3_fci_ens[i]}\t{he3_imsrg_ens[i]}\t{he3_ccsd_ens[i]}\t{he4_fci_ens[i]}\t{he4_imsrg_ens[i]}\t{he4_ccsd_ens[i]}')
+    print("".join(
+        ["{:<14}".format(x) for x in 
+         [params[i][0], he3_fci_ens[i], he3_imsrg_ens[i], he3_ccsd_ens[i], he4_fci_ens[i], he4_imsrg_ens[i], he4_ccsd_ens[i]]
+        ]
+    ))

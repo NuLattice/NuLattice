@@ -1,8 +1,10 @@
-import sys, pathlib, os
-sys.path.append(str(pathlib.Path(os.path.abspath("")) / ".."))
+import sys, pathlib
+sys.path.append(str(pathlib.Path(__file__).parent / ".."))
 import NuLattice.lattice as lat
 import NuLattice.references as ref
 import NuLattice.CCM.coupled_cluster as ccm
+
+import numpy as np
 
 a_lat = 2.0
 vS1 = -8
@@ -26,5 +28,5 @@ for thisL in [3,4]:
         corrEn, t1, t2 = ccm.ccsd_solver(fock_mats, two_body_int, 
                             eps = 1e-8)
         phys_unit = lat.phys_unit(a_lat)
-        gsEn = (corrEn + refEn) * phys_unit
+        gsEn = np.round((corrEn + refEn) * phys_unit, 2)
         print(f'{gsEn} MeV')
