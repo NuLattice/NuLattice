@@ -99,7 +99,7 @@ for i in params:
                         occs, myTkin, mycontact, my3body
                     )
         e_imsrg, integration_data = ode_solver.solve_imsrg2(occs, e0, f, gamma, s_max=100, eta_criterion=1e-3)
-        e_imsrg = np.round(e_imsrg, 2)
+        e_imsrg = np.round(e_imsrg * phys_unit, 2)
     else:
         e_imsrg = "-"
     he3_imsrg_ens.append(e_imsrg)
@@ -111,7 +111,7 @@ for i in params:
                         occs, myTkin, mycontact, my3body
                     )
         e_imsrg, integration_data = ode_solver.solve_imsrg2(occs, e0, f, gamma, s_max=100, eta_criterion=1e-3)
-        e_imsrg = np.round(e_imsrg, 2)
+        e_imsrg = np.round(e_imsrg * phys_unit, 2)
     else:
         e_imsrg = "-"
     he4_imsrg_ens.append(e_imsrg)
