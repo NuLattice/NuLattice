@@ -136,15 +136,6 @@ def get_3NF(part, hole, my3body):
                 bra_signs = [1, -1, -1, -1, 1, 1]
             else:
                 continue
-    
-#         elif ket == ("p", "p", "p"): # for future use; not needed in CCSD with 3NFs
-#             ket_perms = [[a, b, c], [b, a, c], [c, b, a], [a, c, b], [b, c, a], [c, a, b]]
-#             ket_signs = [1, -1, -1, -1, 1, 1]
-            
-#             if bra == ("p", "p", "p"):
-#                 vint = w_ppp_ppp
-#                 bra_perms = [[d, e, f], [e, d, f], [f, e, d], [d, f, e], [e, f, d], [f, d, e]]
-#                 bra_signs = [1, -1, -1, -1, 1, 1]
                     
         else:
             continue # the matrix element is not needed (we exploit that 3NF is real symmetric)

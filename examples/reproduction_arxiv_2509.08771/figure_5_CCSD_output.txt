@@ -1,0 +1,6 @@
+L=3 8Be GS Energy: -51.4 MeV
+L=3 12C GS Energy: -74.23 MeV
+L=3 16O GS Energy: -98.85 MeV
+L=4 8Be GS Energy: -49.42 MeV
+L=4 12C GS Energy: -71.82 MeV
+L=4 16O GS Energy: -95.1 MeV
