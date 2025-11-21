@@ -9,7 +9,7 @@ of the kinetic energy, an on-site (SU4 symmetric) two-body contact,
 and an on-site three-body contact.
 
 [![Documentation Status](https://app.readthedocs.org/projects/nulattice/badge/)](https://nulattice.readthedocs.io/)
-[![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.17094173.svg)](https://doi.org/10.5281/zenodo.17094173)
+[![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.17094172.svg)](https://doi.org/10.5281/zenodo.17094172)
 [![arXiv](https://img.shields.io/badge/arXiv-2509.08771-b31b1b.svg)](https://arxiv.org/abs/2509.08771)
 
 ## Setup
