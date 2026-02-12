@@ -11,6 +11,7 @@ and an on-site three-body contact.
 [![Documentation Status](https://app.readthedocs.org/projects/nulattice/badge/)](https://nulattice.readthedocs.io/)
 [![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.17094172.svg)](https://doi.org/10.5281/zenodo.17094172)
 [![arXiv](https://img.shields.io/badge/arXiv-2509.08771-b31b1b.svg)](https://arxiv.org/abs/2509.08771)
+[![EPJA](https://img.shields.io/badge/Journal_DOI-10.1140/epja/s10050--025--01764--6-5077AB.svg)](https://doi.org/10.1140/epja/s10050-025-01764-6)
 
 ## Setup
 
@@ -45,20 +46,21 @@ Consistent contributors will be given the option to also serve as maintainers of
 
 To cite `NuLattice` in your research, please reference:
 
-M. Rothman, B. Johnson-Toth, G. Hagen, M. Heinz, T. Papenbrock, `NuLattice`: Ab initio computations of atomic nuclei on lattices, [arXiv:2509.08771](https://arxiv.org/abs/2509.08771)
+M. Rothman, B. Johnson-Toth, G. Hagen, M. Heinz, T. Papenbrock, `NuLattice`: Ab initio computations of atomic nuclei on lattices, [Eur. Phys. J. A **62**, 28 (2026)](https://doi.org/10.1140/epja/s10050-025-01764-6), [arXiv:2509.08771](https://arxiv.org/abs/2509.08771)
 
 For BibTex users, we provide the BibTex entry:
 
 ```
-@misc{Rothman2025NuLattice,
+@article{Rothman2026NuLattice,
       title={{N}u{L}attice: Ab initio computations of atomic nuclei on lattices}, 
       author={M. Rothman and B. Johnson-Toth and G. Hagen and M. Heinz and T. Papenbrock},
-      year={2025},
+      journal={Eur. Phys. J. A},
+      volume={62},
+      pages={28},
+      year={2026},
       eprint={2509.08771},
       archivePrefix={arXiv},
-      primaryClass={nucl-th},
-      url={https://arxiv.org/abs/2509.08771},
-      doi={10.48550/arXiv.2509.08771}
+      doi={10.1140/epja/s10050-025-01764-6}
 }
 ```
 
