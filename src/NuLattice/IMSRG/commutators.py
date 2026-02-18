@@ -359,16 +359,15 @@ def _evaluate_comm_222_pphh_np(occs, a2, b2):
     # (n-n) term from IMSRG flow
     q_factor = (occsbar[:, None] * occsbar[None, :]) - (occs[:, None] * occs[None, :])
     
-    # Apply weights to the first operator's particle/hole indices
-    a2_weighted = a2 * q_factor[None, None, :, :]
-    
-    A_mat = a2_weighted.reshape(dim**2, dim**2)
-    B_mat = b2.reshape(dim**2, dim**2)
-    
-    # 2D Matrix Multiplication (GEMM)
-    res_mat = 0.5 * (np.matmul(A_mat, B_mat) - np.matmul(b2.reshape(dim**2, dim**2), A_mat))
-    
-    return res_mat.reshape(dim, dim, dim, dim)
+
+    # reshape to (N**2, N**2)
+    A = a2.reshape(dim**2, dim**2)
+    B = b2.reshape(dim**2, dim**2)
+    A_weighted = (a2 * q_factor[None, None, :, :]).reshape(dim**2, dim**2)    
+    B_weighted = (b2 * q_factor[None, None, :, :]).reshape(dim**2, dim**2)    
+
+    res = 0.5 * (np.matmul(A_weighted, B) - np.matmul(B_weighted, A))
+    return res.reshape(dim, dim, dim, dim)
 
 def evaluate_comm_222_ph(occs, a2, b2):
     """

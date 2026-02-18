@@ -65,6 +65,16 @@ def test_comm_222_pphh_equivalence(imsrg_setup):
     
     assert_allclose(res_np, res_orig, atol=1e-15)
 
+@pytest.mark.comm_222_pphh
+def test_comm_222_pphh_original(benchmark, imsrg_setup):
+    setup = imsrg_setup
+    benchmark(comm._evaluate_comm_222_pphh_original, setup["occs"], setup["a2"], setup["b2"])
+
+@pytest.mark.comm_222_pphh
+def test_comm_222_pphh_np(benchmark, imsrg_setup):
+    setup = imsrg_setup
+    benchmark(comm._evaluate_comm_222_pphh_np, setup["occs"], setup["a2"], setup["b2"])
+
 def test_comm_222_ph_equivalence(imsrg_setup):
     """Checks the particle-hole sector after index transpositions."""
     setup = imsrg_setup
