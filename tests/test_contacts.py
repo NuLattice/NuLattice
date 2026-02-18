@@ -107,3 +107,64 @@ def test_nnn_contact_antisymmetry():
         assert row[3] < row[4] < row[5]
         # Diagonal check
         assert row[0] == row[3] and row[1] == row[4] and row[2] == row[5]
+
+def test_tkin_equivalence():
+    """Compare naive loop-based Tkin with vectorized implementation."""
+    myL = 3
+    lat_sites = lattice.get_lattice(myL)
+    
+    legacy_res = lattice._Tkin_original(lat_sites, myL)
+    opt_res = lattice._Tkin_np(lat_sites, myL)
+    
+    legacy_res.sort()
+    opt_res.sort()
+    
+    assert len(legacy_res) == len(opt_res)
+    assert_allclose(opt_res, legacy_res, atol=1e-15)
+
+def test_tkin_diagonals():
+    """In 3D, each diagonal element must be 2.0 * 3 = 6.0."""
+    myL = 4
+    lat = lattice.get_lattice(myL)
+    mat = lattice.Tkin(lat, myL)
+    
+    diagonals = [row[2] for row in mat if row[0] == row[1]]
+    # Total single particle states = L^3 * spin * isospin
+    expected_count = (myL**3) * 4 
+    
+    assert len(diagonals) == expected_count
+    assert all(val == 6.0 for val in diagonals)
+
+def test_tkin_hermiticity():
+    """T_ij must equal T_ji (since matrix elements are real)."""
+    myL = 3
+    lat = lattice.get_lattice(myL)
+    mat = lattice.Tkin(lat, myL)
+    
+    # Convert list of [p, q, val] to a dictionary for fast lookup
+    lookup = {(int(p), int(q)): val for p, q, val in mat}
+    
+    for (p, q), val in lookup.items():
+        assert (q, p) in lookup, f"Missing Hermitian partner for ({p}, {q})"
+        assert_allclose(lookup[(q, p)], val, atol=1e-15)
+
+def test_tkin_sparsity_count():
+    """
+    On a 3D lattice, each state has 1 diagonal + 6 neighbors (2 per dimension).
+    Total elements should be N_states * 7.
+    """
+    myL = 3
+    lat = lattice.get_lattice(myL)
+    n_states = (myL**3) * 4
+    mat = lattice.Tkin(lat, myL)
+    
+    assert len(mat) == n_states * 7
+
+def test_tkin_offdiagonal_values():
+    """All hopping elements must be -1.0."""
+    myL = 2
+    lat = lattice.get_lattice(myL)
+    mat = lattice.Tkin(lat, myL)
+    
+    off_diagonals = [row[2] for row in mat if row[0] != row[1]]
+    assert all(val == -1.0 for val in off_diagonals)

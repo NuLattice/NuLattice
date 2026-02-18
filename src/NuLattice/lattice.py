@@ -230,7 +230,7 @@ def right(site_location: int, myL: int) -> int:
     """
     return _right_modulus(site_location, myL)
 
-def Tkin(lattice: LatticeSite, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
+def _Tkin_original(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
     """
     computes 1-body kinetic energy matrix elements. Really: the negative dimensionless laplacian
 
@@ -294,8 +294,46 @@ def Tkin(lattice: LatticeSite, myL: int, spin: int=2, isospin: int=2) -> OneBody
                 indx2 = state2index(state2, myL=myL, spin=spin, isospin=isospin)
                 mat.append([indx1, indx2, val])
                 mat.append([indx2, indx1, val])  # adds a hop-to-the left matrix element
-    #
     return mat
+
+def _Tkin_np(lattice_sites: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
+    k_stride = isospin * spin
+    j_stride = myL * k_stride
+    i_stride = myL * j_stride
+    
+    # get all single-particle indices
+    # shape: (n_total,)
+    indices = np.arange(len(lattice_sites) * isospin * spin)
+    
+    # Diagonal elements (2.0 * 3 dimensions = 6.0)
+    # <p|T|p>
+    mat = np.column_stack([indices, indices, np.full(len(indices), 6.0)])
+    
+    # off-diagonal
+    # For each spatial dimension (x, y, z), we find the index of the neighbor
+    # NOTE(vivek): The 'neighbor' in a periodic lattice is just a cyclic shift of indices
+    # need to be careful to only shift the spatial part, not spin/isospin
+    all_hops = []
+    for dim, stride in enumerate([i_stride, j_stride, k_stride]):
+        
+        basis = np.array(get_sp_basis(myL, spin, isospin))
+        neighbor_states = basis.copy()
+        neighbor_states[:, dim] = (neighbor_states[:, dim] + 1) % myL
+        
+        neighbor_indices = (neighbor_states[:, 0] * i_stride + 
+                            neighbor_states[:, 1] * j_stride + 
+                            neighbor_states[:, 2] * k_stride + 
+                            neighbor_states[:, 3] * spin + 
+                            neighbor_states[:, 4])
+        
+        hop_right = np.column_stack([indices, neighbor_indices, np.full(len(indices), -1.0)])
+        hop_left = np.column_stack([neighbor_indices, indices, np.full(len(indices), -1.0)])
+        all_hops.extend([hop_right, hop_left])
+        
+    return np.vstack([mat] + all_hops)
+
+def Tkin(lattice: LatticeSite, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
+    return _Tkin_original(lattice, myL, spin, isospin)
 
 def contacts(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> TwoBodyElement:
     """
