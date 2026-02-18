@@ -3,22 +3,22 @@
 
 def test_get_lattice_equivalence():
     """Verify that vectorized mgrid lattice generation matches naive loops."""
-    from NuLattice.lattice import _get_lattice_list, _get_lattice_mgrid
+    from NuLattice.lattice import _get_lattice_original, _get_lattice_np
 
     myL = 4
-    naive_lat = _get_lattice_list(myL)
-    opt_lat = _get_lattice_mgrid(myL)
+    naive_lat = _get_lattice_original(myL)
+    opt_lat = _get_lattice_np(myL).tolist()
     
     assert len(naive_lat) == len(opt_lat)
     assert naive_lat == opt_lat
 
 def test_get_sp_basis_equivalence():
     """Verify that vectorized basis generation matches original nested loops."""
-    from NuLattice.lattice import _get_sp_basis_mgrid, _get_sp_basis_list
+    from NuLattice.lattice import _get_sp_basis_np, _get_sp_basis_original
 
     myL = 3
-    naive_basis = _get_sp_basis_list(myL)
-    opt_basis = _get_sp_basis_mgrid(myL).tolist()
+    naive_basis = _get_sp_basis_original(myL)
+    opt_basis = _get_sp_basis_np(myL).tolist()
     
     assert len(naive_basis) == len(opt_basis)
     assert naive_basis == opt_basis

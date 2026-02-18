@@ -10,6 +10,7 @@ __date__ = "2025-07-26"
 
 import copy
 import numpy as np
+from itertools import combinations
 
 from typing import TypeAlias, Tuple, List
 from .constants import hbarc, mass
@@ -60,7 +61,7 @@ def phys_unit(a_lat: float) -> float:
     return 0.5 * hbarc**2 / (mass * a_lat**2)
 
 
-def _get_sp_basis_list(myL: int, spin: int = 2, isospin: int = 2) -> SingleParticleBasis:
+def _get_sp_basis_original(myL: int, spin: int = 2, isospin: int = 2) -> SingleParticleBasis:
     sp_basis = []
     for i in range(myL):
         for j in range(myL):
@@ -71,7 +72,7 @@ def _get_sp_basis_list(myL: int, spin: int = 2, isospin: int = 2) -> SingleParti
     return sp_basis
 
 
-def _get_sp_basis_mgrid(myL: int, spin: int = 2, isospin: int = 2) -> SingleParticleBasis:
+def _get_sp_basis_np(myL: int, spin: int = 2, isospin: int = 2) -> SingleParticleBasis:
     lattice_sites = np.mgrid[0:myL, 0:myL, 0:myL, 0:isospin, 0:spin]
     return lattice_sites.reshape(5, -1).T
 
@@ -91,7 +92,7 @@ def get_sp_basis(myL: int, spin: int = 2, isospin: int = 2) -> SingleParticleBas
                 respectively
     :rtype: list[(int, int, int, int, int)]
     """
-    return _get_sp_basis_mgrid(myL, spin, isospin).tolist()
+    return _get_sp_basis_np(myL, spin, isospin).tolist()
 
 def _state2index_original(state: LatticeState, myL: int, spin: int = 2, isospin: int = 2) -> int:
     i = state[0]
@@ -140,7 +141,7 @@ def state2index(state: LatticeState, myL: int, spin: int = 2, isospin: int = 2) 
     """
     return _state2index_strided(state, myL, spin, isospin)
 
-def _get_lattice_list(myL: int) -> LatticeSites:
+def _get_lattice_original(myL: int) -> LatticeSites:
     lattice = []
     for i in range(myL):
         for j in range(myL):
@@ -148,10 +149,7 @@ def _get_lattice_list(myL: int) -> LatticeSites:
                 lattice.append([i, j, k])
     return lattice
 
-def _get_lattice_mgrid(myL: int) -> LatticeSites:
-    """
-    builds a 3D lattice via np.mgrid
-    """
+def _get_lattice_np(myL: int) -> LatticeSites:
     lattice_sites = np.mgrid[0:myL, 0:myL, 0:myL]
     return lattice_sites.reshape(3, -1).T
 
@@ -165,7 +163,7 @@ def get_lattice(myL: int) -> LatticeSites:
                 by i, j, k (from 0 to myL-1) in direction 1, 2, 3
     :rtype:     list[(int, int, int)]
     """
-    return _get_lattice_mgrid(myL).tolist()
+    return _get_lattice_np(myL).tolist()
 
 def site2index(site: LatticeSite, myL: int) -> int:
     """
@@ -187,6 +185,39 @@ def site2index(site: LatticeSite, myL: int) -> int:
 
 
 def _right_if(site_location: int, myL: int) -> int:
+    if site_location + 1 < myL:
+        res = site_location + 1
+    else:
+        res = 0
+    return res
+
+def _left_if(site_location: int, myL: int) -> int:
+    if site_location - 1 >= 0:
+        res = site_location - 1
+    else:
+        res = myL - 1
+    return res
+
+def _left_modulus(site_location: int, myL: int):
+    return (site_location - 1) % myL
+
+def _right_modulus(site_location: int, myL: int):
+    return (site_location + 1) % myL
+
+def left(site_location: int, myL: int) -> int:
+    """
+    moves a site to the left in 1D, respecting periodic boundary conditions
+
+    :param site_location:    integer location of the site
+    :type site_location:     int
+    :param myL:     number of lattice sites in each direction
+    :type myL:      int
+    :return:        index of site one to the left of site with index site
+    :rtype:         int
+    """
+    return _left_modulus(site_location, myL)
+
+def right(site_location: int, myL: int) -> int:
     """
     moves a site to the right in 1D, respecting periodic boundary conditions
 
@@ -197,47 +228,7 @@ def _right_if(site_location: int, myL: int) -> int:
     :return:        index of site one to the right of site with index site
     :rtype:         int
     """
-    if site_location + 1 < myL:
-        res = site_location + 1
-    else:
-        res = 0
-    return res
-
-def _right_modulus(site_location: int, myL: int):
-    return (site_location + 1) % myL
-
-def _left_if(site_location: int, myL: int) -> int:
-    """
-    moves a site to the left in 1D, respecting periodic boundary conditions
-
-    :param site_location:    integer location of the site
-    :type site_location:     int
-    :param myL:     number of lattice sites in each direction
-    :type myL:      int
-    :return:        index of site one to the left of site with index site
-    :rtype:         int
-    """
-    if site_location - 1 >= 0:
-        res = site_location - 1
-    else:
-        res = myL - 1
-    return res
-
-def _left_modulus(site_location: int, myL: int):
-    """
-    moves a site to the left in 1D, respecting periodic boundary conditions
-
-    :param site_location:    integer location of the site
-    :type site_location:     int
-    :param myL:     number of lattice sites in each direction
-    :type myL:      int
-    :return:        index of site one to the left of site with index site
-    :rtype:         int
-    """
-    return (site_location - 1) % myL
-
-left = _left_modulus
-right = _right_modulus
+    return _right_modulus(site_location, myL)
 
 def Tkin(lattice: LatticeSite, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
     """
@@ -486,7 +477,7 @@ def _contacts_np(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: 
 
     return np.column_stack([final_p, final_q, final_r, final_s, final_vals])
 
-def NNNcontact(v3NF: float, lattice: LatticeSites, myL: int, spin:int=2, isospin: int=2) -> ThreeBodyElement:
+def _NNNcontact_original(v3NF: float, lattice: LatticeSites, myL: int, spin:int=2, isospin: int=2) -> ThreeBodyElement:
     """
     computes matrix elements for three-body onsite contact
 
@@ -551,7 +542,58 @@ def NNNcontact(v3NF: float, lattice: LatticeSites, myL: int, spin:int=2, isospin
 
     return matele
 
+def _NNNcontact_np(v3NF: float, lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> ThreeBodyElement:
+    k_stride = isospin * spin
+    j_stride = myL * k_stride
+    i_stride = myL * j_stride
+    
+    num_local_states = isospin * spin
+    local_indices = np.arange(num_local_states)
+    
+    # NOTE(vivek): only need p < q < r because the original code only stores diagonal 
+    # matrix elements <pqr|V|pqr> for the unit strength contact.
+    # If the logic ever changes to allow off-diagonal triples, 
+    # --> meshgrid(p, q, r, p', q', r') (memory expensive for large n)
+    triples = np.array(list(combinations(local_indices, 3)))
+    
+    if len(triples) == 0:
+        return []
 
+    p = triples[:, 0]
+    q = triples[:, 1]
+    r = triples[:, 2]
+
+    # In the original code, the value is v3NF for every valid p < q < r
+    values = np.full(len(p), float(v3NF))
+
+    spatial_lattice = np.array(lattice)
+    offsets = (spatial_lattice[:, 0] * i_stride + 
+               spatial_lattice[:, 1] * j_stride + 
+               spatial_lattice[:, 2] * k_stride)
+    
+    # Broadcasting: [N_lattice, 1] + [1, N_triples]
+    final_p = (offsets[:, None] + p).flatten()
+    final_q = (offsets[:, None] + q).flatten()
+    final_r = (offsets[:, None] + r).flatten()
+    
+    final_vals = np.tile(values, len(offsets))
+
+    # 5. Final Stack and Format
+    # column_stack: [p, q, r, p, q, r, val]
+    return np.column_stack([
+        final_p,
+        final_q,
+        final_r, 
+        final_p,
+        final_q,
+        final_r, 
+        final_vals
+    ])
+
+def NNNcontact(v3NF: float, lattice: LatticeSites, myL: int, spin:int=2, isospin: int=2) -> ThreeBodyElement:
+    return _NNNcontact_np(v3NF, lattice, myL, spin, isospin).tolist()
+
+    
 def p_x(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
     """
     computes matrix elements for 1-body momentum operator p_x. Really: -i times d_x

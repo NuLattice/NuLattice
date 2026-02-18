@@ -1,4 +1,3 @@
-import pytest
 from numpy.testing import assert_allclose
 from NuLattice import lattice
 
@@ -81,3 +80,30 @@ def test_contacts_onsite_restriction():
         
         assert coord_i == coord_j == coord_k == coord_l, "Interaction is not onsite!"
 
+def test_nnn_contact_equivalence():
+    """Verify optimized NNNcontact matches naive implementation."""
+    myL = 2
+    v3NF = 0.5
+    lat = lattice.get_lattice(myL)
+    
+    naive_res = lattice._NNNcontact_original(v3NF, lat, myL)
+    opt_res = lattice._NNNcontact_np(v3NF, lat, myL).tolist()
+    
+    naive_res.sort()
+    opt_res.sort()
+    
+    assert len(naive_res) == len(opt_res)
+    assert_allclose(opt_res, naive_res, atol=1e-15)
+
+def test_nnn_contact_antisymmetry():
+    """Check i1 < i2 < i3 constraint."""
+    myL = 2
+    lat = lattice.get_lattice(myL)
+    matele = lattice.NNNcontact(1.0, lat, myL)
+    
+    for row in matele:
+        # Indices: i1, i2, i3, j1, j2, j3, val
+        assert row[0] < row[1] < row[2]
+        assert row[3] < row[4] < row[5]
+        # Diagonal check
+        assert row[0] == row[3] and row[1] == row[4] and row[2] == row[5]
