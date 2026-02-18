@@ -316,6 +316,52 @@ def _Tkin_np(lattice_sites: LatticeSites, myL: int, spin: int=2, isospin: int=2)
         
     return np.vstack(all_hops)
 
+# NOTE(vivek): about 25% slower, but not sure if this will change once we switch to gpu (ie list extension expensive)
+# reason for slowness likely cpu prefetcher as (3, N, L) requires strided access
+def _Tkin_np_flat(lattice_sites: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
+    n_local = isospin * spin
+    n_spatial = len(lattice_sites)
+    n_total = n_spatial * n_local
+    
+    k_stride = n_local
+    j_stride = myL * k_stride
+    i_stride = myL * j_stride
+    strides = np.array([i_stride, j_stride, k_stride])
+
+    indices = np.arange(n_total)
+    diag_mat = np.column_stack([indices, indices, np.full(n_total, 6.0)])
+
+    spatial_coords = np.array(lattice_sites)
+    
+    dims = np.arange(3)
+    right_coords = np.tile(spatial_coords, (3, 1, 1))
+    
+    for d in dims:
+        right_coords[d, :, d] = (right_coords[d, :, d] + 1) % myL
+
+    # broadcast spatial indices across local spin/isospin degrees of freedom
+    local_offsets = np.arange(n_local)
+    
+    # spatial_idx * strides -> (3, N_spatial)
+    # add local_offsets -> (3, N_spatial, N_local)
+    r_spatial_indices = np.sum(right_coords * strides, axis=2) # (3, N_spatial)
+    
+    # shape: (3, N_spatial, N_local) -> flattened to (3 * N_total)
+    r_indices = (r_spatial_indices[:, :, None] + local_offsets).flatten()
+    
+    # source indices tiled to match the 3 dimensions and local states
+    p_indices = np.tile(indices, 3)
+    
+    # Right Hops: [p, r_idx, -1.0]
+    # Left Hops:  [r_idx, p, -1.0] (Symmetry of the Laplacian)
+    hop_p = np.concatenate([p_indices, r_indices])
+    hop_q = np.concatenate([r_indices, p_indices])
+    hop_vals = np.full(len(hop_p), -1.0)
+    
+    off_diag_mat = np.column_stack([hop_p, hop_q, hop_vals])
+
+    return np.vstack([diag_mat, off_diag_mat])
+
 def Tkin(lattice: LatticeSite, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
     """
     computes 1-body kinetic energy matrix elements. Really: the negative dimensionless laplacian
@@ -332,7 +378,7 @@ def Tkin(lattice: LatticeSite, myL: int, spin: int=2, isospin: int=2) -> OneBody
                 basis, and value is the value of the matrix element Tij
     :rtype:     list[(int, int, float)]
     """
-    return _Tkin_original(lattice, myL, spin, isospin)
+    return _Tkin_np(lattice, myL, spin, isospin).tolist()
 
 def contacts(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> TwoBodyElement:
     """
@@ -515,26 +561,6 @@ def _contacts_np(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: 
     return np.column_stack([final_p, final_q, final_r, final_s, final_vals])
 
 def _NNNcontact_original(v3NF: float, lattice: LatticeSites, myL: int, spin:int=2, isospin: int=2) -> ThreeBodyElement:
-    """
-    computes matrix elements for three-body onsite contact
-
-    :param v3NF:        strength of the 3 nucleon force
-    :type v3NF:         float
-    :param lattice:     list of lattice sites returned by get_lattice
-    :type lattice:      list[(int, int, int)]
-    :param myL:         number of lattice sites in each direction
-    :type myL:          int
-    :param spin:        Optional; number of spin degrees of freedom
-    :type spinL:        int
-    :param isospin:     Optional; number of isospin degrees of freedom
-    :type isospin:      int
-    :return:    list of tuples [i1, i2, i3, j1, j2, j3, value] where i1, i2, i3
-                and j1, j2, j3 are indices of three particles in the
-                single-particle basis, and value is one (unit strength) for the
-                matrix element <i1 i2 i3||j1 j2 j3>.
-                All elements have i1<i2<i3 and j1<j2<j3
-    :rtype:             list[(int, int, int, int, int, int, float)]
-    """
     value = v3NF
     matele = []
     for site in lattice:
@@ -628,10 +654,30 @@ def _NNNcontact_np(v3NF: float, lattice: LatticeSites, myL: int, spin: int=2, is
     ])
 
 def NNNcontact(v3NF: float, lattice: LatticeSites, myL: int, spin:int=2, isospin: int=2) -> ThreeBodyElement:
+    """
+    computes matrix elements for three-body onsite contact
+
+    :param v3NF:        strength of the 3 nucleon force
+    :type v3NF:         float
+    :param lattice:     list of lattice sites returned by get_lattice
+    :type lattice:      list[(int, int, int)]
+    :param myL:         number of lattice sites in each direction
+    :type myL:          int
+    :param spin:        Optional; number of spin degrees of freedom
+    :type spinL:        int
+    :param isospin:     Optional; number of isospin degrees of freedom
+    :type isospin:      int
+    :return:    list of tuples [i1, i2, i3, j1, j2, j3, value] where i1, i2, i3
+                and j1, j2, j3 are indices of three particles in the
+                single-particle basis, and value is one (unit strength) for the
+                matrix element <i1 i2 i3||j1 j2 j3>.
+                All elements have i1<i2<i3 and j1<j2<j3
+    :rtype:             list[(int, int, int, int, int, int, float)]
+    """
     return _NNNcontact_np(v3NF, lattice, myL, spin, isospin).tolist()
 
     
-def p_x(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
+def _p_x_original(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
     """
     computes matrix elements for 1-body momentum operator p_x. Really: -i times d_x
 
@@ -669,7 +715,7 @@ def p_x(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBody
     return mat
 
 
-def p_y(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
+def _p_y_original(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
     """
     computes matrix elements for 1-body momentum operator p_y. Really: -i times d_y
 
@@ -708,7 +754,7 @@ def p_y(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBody
     return mat
 
 
-def p_z(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
+def _p_z_original(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
     """
     computes matrix elements for 1-body momentum operator p_z. Really: -i times d_z
 
@@ -745,6 +791,61 @@ def p_z(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBody
                 )  # adds a hop-to-the left matrix element
     #
     return mat
+
+def _p_np(lattice_sites: LatticeSites, myL: int, dim: int, spin: int=2, isospin: int=2) -> OneBodyElement:
+    """
+    dim: 0 for x, 1 for y, 2 for z.
+    """
+    n_local = isospin * spin
+    n_spatial = len(lattice_sites)
+    n_total = n_spatial * n_local
+    
+    k_stride = n_local
+    j_stride = myL * k_stride
+    i_stride = myL * j_stride
+    strides = np.array([i_stride, j_stride, k_stride])
+
+    indices = np.arange(n_total)
+    
+    spatial_coords = np.array(lattice_sites)
+    neighbor_coords = spatial_coords.copy()
+    
+    neighbor_coords[:, dim] = (neighbor_coords[:, dim] + 1) % myL
+    
+    # Convert shifted coordinates back to flat indices
+    neighbor_spatial_base = np.sum(neighbor_coords * strides, axis=1)
+    local_offsets = np.arange(n_local)
+    neighbor_indices = (neighbor_spatial_base[:, None] + local_offsets).flatten()
+    
+    
+    # Hop Right: [indx1, indx2, +0.5i]
+    # Hop Left: [indx2, indx1, -0.5i]
+    # val = -0.5j
+    # hop_r = np.column_stack([indices, neighbor_indices, np.full(n_total, val)])
+    # hop_l = np.column_stack([neighbor_indices, indices, np.full(n_total, -val)])
+    #
+    res = np.empty((n_total * 2, 3), dtype=object)
+    
+    # Right hops
+    res[:n_total, 0] = indices
+    res[:n_total, 1] = neighbor_indices
+    res[:n_total, 2] = -0.5j
+    
+    # Left hops
+    res[n_total:, 0] = neighbor_indices
+    res[n_total:, 1] = indices
+    res[n_total:, 2] = 0.5j
+    
+    return res
+
+def p_x(lattice_sites: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
+    return _p_np(lattice_sites, myL, 0, spin, isospin).tolist()
+
+def p_y(lattice_sites: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
+    return _p_np(lattice_sites, myL, 1, spin, isospin).tolist()
+
+def p_z(lattice_sites: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
+    return _p_np(lattice_sites, myL, 2, spin, isospin).tolist()
 
 
 def states2PHSpace(holeList: LatticeState, myL: int) -> Tuple[Tuple[int], Tuple[int]]:

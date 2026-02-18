@@ -115,12 +115,16 @@ def test_tkin_equivalence():
     
     legacy_res = lattice._Tkin_original(lat_sites, myL)
     opt_res = lattice._Tkin_np(lat_sites, myL).tolist()
+    res_boogaloo = lattice._Tkin_np_flat(lat_sites, myL).tolist()
     
     legacy_res.sort()
     opt_res.sort()
+    res_boogaloo.sort()
     
     assert len(legacy_res) == len(opt_res)
+    assert len(legacy_res) == len(res_boogaloo)
     assert_allclose(opt_res, legacy_res, atol=1e-15)
+    assert_allclose(res_boogaloo, legacy_res, atol=1e-15)
 
 def test_tkin_diagonals():
     """In 3D, each diagonal element must be 2.0 * 3 = 6.0."""

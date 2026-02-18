@@ -137,3 +137,13 @@ def test_Tkin_np(benchmark):
     myL = 16
     lat = lattice.get_lattice(myL)
     benchmark(lattice._Tkin_np, lat, myL)
+    
+@pytest.mark.tkin
+def test_Tkin_np_flat(benchmark):
+    """
+    Benchmarks the speedup of the vectorized contacts.
+    """
+
+    myL = 16
+    lat = lattice.get_lattice(myL)
+    benchmark(lattice._Tkin_np_flat, lat, myL)
