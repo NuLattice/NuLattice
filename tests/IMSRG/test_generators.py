@@ -63,6 +63,37 @@ def test_build_2b_generator_difference_equivalence_np(benchmark, gen_setup):
     setup = gen_setup
     benchmark(gen._build_2b_energy_difference_np, setup["occs"], setup["f"], setup["delta"])
 
+
+def test_build_1b_arctan_generator_equivalence(gen_setup):
+    """Verifies boolean masking vs floating-point einsum masks."""
+    setup = gen_setup
+    res_orig = gen._build_1b_arctan_generator_original(
+        setup["occs"], setup["f"], setup["delta"]
+    )
+    res_np = gen._build_1b_arctan_generator_np(
+        setup["occs"], setup["f"], setup["delta"]
+    )
+    
+    assert_allclose(res_np, res_orig, atol=1e-15)
+
+@pytest.mark.generator_1b
+def test_1b_generator_original(benchmark, gen_setup):
+    """Benchmarks the single-pass N^4 construction."""
+    setup = gen_setup
+    benchmark(
+        gen._build_1b_arctan_generator_original, 
+        setup["occs"], setup["f"], setup["delta"]
+    )
+
+@pytest.mark.generator_1b
+def test_1b_generator_np(benchmark, gen_setup):
+    """Benchmarks the single-pass N^4 construction."""
+    setup = gen_setup
+    benchmark(
+        gen._build_1b_arctan_generator_np, 
+        setup["occs"], setup["f"], setup["delta"]
+    )
+
 def test_build_2b_arctan_generator_equivalence(gen_setup):
     """Verifies boolean masking vs floating-point einsum masks."""
     setup = gen_setup
@@ -75,7 +106,7 @@ def test_build_2b_arctan_generator_equivalence(gen_setup):
     
     assert_allclose(res_np, res_orig, atol=1e-15)
 
-@pytest.mark.generator
+@pytest.mark.generator_2b
 def test_2b_generator_original(benchmark, gen_setup):
     """Benchmarks the single-pass N^4 construction."""
     setup = gen_setup
@@ -84,7 +115,7 @@ def test_2b_generator_original(benchmark, gen_setup):
         setup["occs"], setup["f"], setup["gamma"], setup["delta"]
     )
 
-@pytest.mark.generator
+@pytest.mark.generator_2b
 def test_2b_generator_np(benchmark, gen_setup):
     """Benchmarks the single-pass N^4 construction."""
     setup = gen_setup

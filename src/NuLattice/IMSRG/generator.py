@@ -153,6 +153,9 @@ def build_1b_arctan_generator(occs, f, delta=0.0):
     :return:        One-body arctangent generator matrix elements
     :rtype:         numpy array
     """
+    return _build_1b_arctan_generator_original(occs, f, delta)
+
+def _build_1b_arctan_generator_original(occs, f, delta=0.0):
     e_diff = build_1b_energy_difference(occs, f, delta)
 
     # Mask to isolate hp and ph matrix elements
@@ -170,6 +173,19 @@ def build_1b_arctan_generator(occs, f, delta=0.0):
         )
     )
 
+def _build_1b_arctan_generator_np(occs, f, delta=0.0):
+    e_diff = _build_1b_energy_difference_np(occs, f, delta)
+
+    h = (occs > 0.5)
+    p = (occs < 0.5)
+    
+    # Create mask for particle-hole (ia) and hole-particle (ai)
+    hp_mask = (h[:, None] & p[None, :]) | (p[:, None] & h[None, :])
+
+    eta = np.zeros_like(f)
+    eta[hp_mask] = 0.5 * np.arctan(2 * f[hp_mask] / e_diff[hp_mask])
+    
+    return eta
 
 def build_2b_arctan_generator(occs, f, gamma, delta=0.0):
     """
