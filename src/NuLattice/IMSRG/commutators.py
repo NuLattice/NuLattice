@@ -330,7 +330,7 @@ def evaluate_comm_222_pphh(occs, a2, b2):
     :return:        Particle-particle hole-hole commutator contribution
     :rtype:         numpy array
     """
-    return _evaluate_comm_222_pphh_original(occs, a2, b2)
+    return _evaluate_comm_222_pphh_np(occs, a2, b2)
 
 def _evaluate_comm_222_pphh_original(occs, a2, b2):
     
@@ -385,6 +385,9 @@ def evaluate_comm_222_ph(occs, a2, b2):
     :return:        Particle-hole commutator contribution
     :rtype:         numpy array
     """
+    return _evaluate_comm_222_ph_np(occs, a2, b2)
+
+def _evaluate_comm_222_ph_original(occs, a2, b2):
     # This is faster than naive version above because we only do half as many BLAS operations
     occsbar = 1 - occs
 
@@ -397,6 +400,29 @@ def evaluate_comm_222_ph(occs, a2, b2):
         * opt_einsum.contract("pjkq,iqpl->ijkl", a2_with_occs2, b2, optimize="greedy")
     )
 
+
+# NOTE(vivek): Transpose + Reshape + GEMM.
+# Logic: Handle the cross-contraction (particle-hole) by reordering indices 
+# creates adjacent contracted indices
+def _evaluate_comm_222_ph_np(occs, a2, b2):
+    dim = len(occs)
+    occsbar = 1 - occs
+    
+    # n_p * (1 - n_q) - (1 - n_p) * n_q
+    ph_factor = (occs[:, None] * occsbar[None, :]) - (occsbar[:, None] * occs[None, :])
+    
+    # contraction pjkq, iqpl -> ijkl
+    # i, j, k, l -> j, k, p, q (1, 2, 0, 3)
+    # i, j, k, l -> i, l, p, q (0, 3, 2, 1)
+    # align q and p indices
+
+    A_weighted = (a2 * ph_factor[:, None, None, :]).transpose(1, 2, 0, 3).reshape(dim**2, dim**2)    
+    B = b2.transpose(2, 1, 0, 3).reshape(dim**2, dim**2)
+
+    c_mat = np.matmul(A_weighted, B)
+    
+    res = -4 * c_mat.reshape(dim, dim, dim, dim).transpose(2, 0, 1, 3)
+    return antisymmetrize_2b(res)
 
 def evaluate_comm_222(occs, a2, b2):
     """

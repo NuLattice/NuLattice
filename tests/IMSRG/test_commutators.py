@@ -84,7 +84,13 @@ def test_comm_222_ph_equivalence(imsrg_setup):
     assert_allclose(res_np, res_orig, atol=1e-15)
 
 @pytest.mark.comm_222
-def test_comm_222_benchmark(benchmark, imsrg_setup):
+def test_comm_222_original(benchmark, imsrg_setup):
     """Benchmarks the peak throughput of the reshaped matmul implementation."""
     setup = imsrg_setup
-    benchmark(comm._evaluate_comm_222_np, setup["occs"], setup["a2"], setup["b2"])
+    benchmark(lambda: comm._evaluate_comm_222_pphh_original(setup["occs"], setup["a2"], setup["b2"]) +  comm._evaluate_comm_222_ph_original(setup["occs"], setup["a2"], setup["b2"]) )
+
+@pytest.mark.comm_222
+def test_comm_222_np(benchmark, imsrg_setup):
+    """Benchmarks the peak throughput of the reshaped matmul implementation."""
+    setup = imsrg_setup
+    benchmark(lambda: comm._evaluate_comm_222_pphh_np(setup["occs"], setup["a2"], setup["b2"]) +  comm._evaluate_comm_222_ph_np(setup["occs"], setup["a2"], setup["b2"]) )
