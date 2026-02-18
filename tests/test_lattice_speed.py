@@ -51,3 +51,37 @@ def test_right_if(benchmark):
 def test_right_modulo(benchmark):
     L = 16
     benchmark(lambda: [lattice._right_modulus(i, L) for i in range(L)])
+
+@pytest.mark.contacts
+def test_contacts_original(benchmark):
+    """
+    Benchmarks the speedup of the vectorized contacts.
+    """
+    p = {
+        "vT1": 1.5,
+        "vS1": -2.0,
+        "myL": 2,
+        "spin": 2,
+        "isospin": 2
+    }
+
+    p["myL"] = 4
+    lat = lattice.get_lattice(p["myL"])
+    benchmark(lattice._contacts_original, p["vT1"], p["vS1"], lat, p["myL"])
+
+@pytest.mark.contacts
+def test_contacts_np(benchmark):
+    """
+    Benchmarks the speedup of the vectorized contacts.
+    """
+    p = {
+        "vT1": 1.5,
+        "vS1": -2.0,
+        "myL": 2,
+        "spin": 2,
+        "isospin": 2
+    }
+
+    p["myL"] = 4
+    lat = lattice.get_lattice(p["myL"])
+    benchmark(lattice._contacts_np, p["vT1"], p["vS1"], lat, p["myL"])

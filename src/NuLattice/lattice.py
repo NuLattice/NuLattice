@@ -306,7 +306,6 @@ def Tkin(lattice: LatticeSite, myL: int, spin: int=2, isospin: int=2) -> OneBody
     #
     return mat
 
-
 def contacts(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> TwoBodyElement:
     """
     computes matrix elements for 2-body onsite contacts
@@ -328,6 +327,10 @@ def contacts(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: int=
                 All elements have i<j and k<l
     :rtype:         list[(int, int, int, int, float)]
     """
+    return _contacts_np(vT1, vS1, lattice, myL, spin, isospin).tolist()
+
+# NOTE(vivek): looks O(L**3 * (iso * spin)**4)
+def _contacts_original(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> TwoBodyElement:
     valueT1 = vT1  # isospin triplet strength
     valueS1 = vS1  # spin triplet strength
     matele = []
@@ -419,6 +422,69 @@ def contacts(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: int=
     #
     return matele
 
+# NOTE(vivek) O(n4) setup + O(L3)
+def _contacts_np(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> TwoBodyElement:
+    k_stride = isospin * spin
+    j_stride = myL * k_stride
+    i_stride = myL * j_stride
+    
+    # precompute the states
+    num_local_states = isospin * spin
+    local_indices = np.arange(num_local_states)
+    
+    # Create all possible pairs (p, q, r, s)
+    # p, q are initial states; r, s are final states
+    p, q, r, s = np.meshgrid(local_indices, local_indices, local_indices, local_indices, indexing='ij')
+    p, q, r, s = p.flatten(), q.flatten(), r.flatten(), s.flatten()
+
+    # Antisymmetry: p < q and r < s
+    mask = (p < q) & (r < s)
+    
+    # Extract tz and sz from local indices
+    tz_p, sz_p = divmod(p, spin)
+    tz_q, sz_q = divmod(q, spin)
+    tz_r, sz_r = divmod(r, spin)
+    tz_s, sz_s = divmod(s, spin)
+    
+    # Conservation of Total Tz and Total Sz
+    mask &= (tz_p + tz_q == tz_r + tz_s)
+    mask &= (sz_p + sz_q == sz_r + sz_s)
+    
+    # Apply mask to get valid local interaction channels
+    p, q, r, s = p[mask], q[mask], r[mask], s[mask]
+    tz_p, tz_q = tz_p[mask], tz_q[mask]
+    sz_p, sz_q = sz_p[mask], sz_q[mask]
+
+    values = np.zeros(len(p))
+    
+    # if tz1 == tz2 -> T=1; if sz1 == sz2 -> S=1; else mixed
+    t1_mask = (tz_p == tz_q)
+    s1_mask = (sz_p == sz_q)
+    mixed_mask = ~(t1_mask | s1_mask)
+    
+    values[t1_mask] = vT1
+    values[s1_mask] = vS1
+    
+    # mixed channel (Tz=0, Sz=0)
+    # indx1 in (indx3, indx4) check:
+    is_diag = (p == r) # p < q and r < s, p must match r or s. 
+    values[mixed_mask & is_diag] = (vS1 + vT1) * 0.5
+    values[mixed_mask & ~is_diag] = (vS1 - vT1) * 0.5
+
+    # Convert lattice to spatial offsets via tiling
+    spatial_lattice = np.array(lattice)
+    offsets = (spatial_lattice[:, 0] * i_stride + 
+               spatial_lattice[:, 1] * j_stride + 
+               spatial_lattice[:, 2] * k_stride)
+    
+    # broadcasting: [N_lattice, 1] + [1, N_channels]
+    final_p = (offsets[:, None] + p).flatten()
+    final_q = (offsets[:, None] + q).flatten()
+    final_r = (offsets[:, None] + r).flatten()
+    final_s = (offsets[:, None] + s).flatten()
+    final_vals = np.tile(values, len(offsets))
+
+    return np.column_stack([final_p, final_q, final_r, final_s, final_vals])
 
 def NNNcontact(v3NF: float, lattice: LatticeSites, myL: int, spin:int=2, isospin: int=2) -> ThreeBodyElement:
     """
