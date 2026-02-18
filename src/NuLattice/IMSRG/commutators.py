@@ -9,9 +9,10 @@ __license__ = "BSD-3-Clause"
 __date__ = "2025-09-03"
 
 import opt_einsum
+import numpy as np
 
 
-def antisymmetrize_2b_pq(a2):
+def antisymmetrize_2b_pq(a2: np.ndarray) -> np.ndarray:
     """
     Antisymmetrizes a two-body operator with respect to the first two indices (pq)
 
@@ -23,10 +24,16 @@ def antisymmetrize_2b_pq(a2):
     :return:        Partially antisymmetrized two-body matrix elements
     :rtype:         numpy array
     """
+    return _antisymmetrize_2b_pq_np(a2)
+
+def _antisymmetrize_2b_pq_original(a2):
     return 0.5 * (a2 - opt_einsum.contract("pqrs->qprs", a2))
 
+def _antisymmetrize_2b_pq_np(a2):
+    return 0.5 * (a2 - np.swapaxes(a2, 0, 1))
 
-def antisymmetrize_2b_rs(a2):
+
+def antisymmetrize_2b_rs(a2: np.ndarray) -> np.ndarray:
     """
     Antisymmetrizes a two-body operator with respect to the last two indices (rs)
 
@@ -38,7 +45,13 @@ def antisymmetrize_2b_rs(a2):
     :return:        Partially antisymmetrized two-body matrix elements
     :rtype:         numpy array
     """
+    return _antisymmetrize_2b_rs_np(a2)
+
+def _antisymmetrize_2b_rs_original(a2):
     return 0.5 * (a2 - opt_einsum.contract("pqrs->pqsr", a2))
+
+def _antisymmetrize_2b_rs_np(a2):
+    return 0.5 * (a2 - np.swapaxes(a2, 2, 3))
 
 
 def antisymmetrize_2b(a2):
@@ -95,7 +108,6 @@ def evaluate_comm_111(occs, a1, b1):
     :return:        One-body commutator contribution
     :rtype:         numpy array
     """
-    occsbar = 1 - occs
 
     return opt_einsum.contract("ip,pj->ij", a1, b1) - opt_einsum.contract(
         "ip,pj->ij", b1, a1
@@ -139,7 +151,6 @@ def evaluate_comm_122(occs, a1, b2):
     :return:        Two-body commutator contribution
     :rtype:         numpy array
     """
-    occsbar = 1 - occs
 
     return antisymmetrize_2b(
         2
