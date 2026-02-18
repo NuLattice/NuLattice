@@ -262,18 +262,23 @@ def _evaluate_comm_221_np(occs, a2, b2):
     dim = len(occs)
     occsbar = 1 - occs
 
-    a_weighted = (
-        (a2 * occsbar[:, None, None, None] * occsbar[None, :, None, None] * occs[None, None, :, None]) + 
-        (a2 * occs[:, None, None, None] * occs[None, :, None, None] * occsbar[None, None, :, None])
+    weights = (
+        (occsbar[None, None, :, None] * occsbar[None, None, None, :] * occs[None, :, None, None]) + 
+        (occs[None, None, :, None] * occs[None, None, None, :] * occsbar[None, :, None, None])
     )
 
-    b_weighted = (
-        (b2 * occsbar[:, None, None, None] * occsbar[None, :, None, None] * occs[None, None, :, None]) +
-        (b2 * occs[:, None, None, None] * occs[None, :, None, None] * occsbar[None, None, :, None])
+    a_weighted = a2 * weights
+    b_weighted = b2 * weights
+
+    # pqjr -> rpqj same as transpose(3, 0, 1, 2)
+    atm = a2.transpose(3, 0, 1, 2).reshape(-1, dim)
+    btm = b2.transpose(3, 0, 1, 2).reshape(-1, dim)
+
+    # (i, r*p*q) & (r*p*q, j) -> (i, j)
+    res = 0.5 * (
+        np.matmul(a_weighted.reshape(dim, -1), btm) - 
+        np.matmul(b_weighted.reshape(dim, -1), atm)
     )
-    # Reshape to (N, N^3) and (N^3, N)
-    res = 0.5 * (np.matmul(a_weighted.reshape(dim, -1), b2.reshape(dim**3, dim).reshape(-1, dim)) - 
-                 np.matmul(b_weighted.reshape(dim, -1), a2.reshape(dim**3, dim).reshape(-1, dim)))
     
     return res
 
@@ -325,6 +330,10 @@ def evaluate_comm_222_pphh(occs, a2, b2):
     :return:        Particle-particle hole-hole commutator contribution
     :rtype:         numpy array
     """
+    return _evaluate_comm_222_pphh_original(occs, a2, b2)
+
+def _evaluate_comm_222_pphh_original(occs, a2, b2):
+    
     # This is faster than naive version above because we only do half as many BLAS operations
     occsbar = 1 - occs
 
@@ -339,6 +348,27 @@ def evaluate_comm_222_pphh(occs, a2, b2):
         opt_einsum.contract("ijpq,pqkl->ijkl", a2_with_occs, b2, optimize="greedy")
         - opt_einsum.contract("ijpq,pqkl->ijkl", b2_with_occs, a2, optimize="greedy")
     )
+
+# NOTE(vivek): reshaping rank 4 to 2
+# Logic: This is an O(N^6) bottleneck. Reshaping (N,N,N,N) into (N^2, N^2) 
+def _evaluate_comm_222_pphh_np(occs, a2, b2):
+    dim = len(occs)
+    occsbar = 1 - occs
+
+    # Weighting factors applied via broadcasting
+    # (n-n) term from IMSRG flow
+    q_factor = (occsbar[:, None] * occsbar[None, :]) - (occs[:, None] * occs[None, :])
+    
+    # Apply weights to the first operator's particle/hole indices
+    a2_weighted = a2 * q_factor[None, None, :, :]
+    
+    A_mat = a2_weighted.reshape(dim**2, dim**2)
+    B_mat = b2.reshape(dim**2, dim**2)
+    
+    # 2D Matrix Multiplication (GEMM)
+    res_mat = 0.5 * (np.matmul(A_mat, B_mat) - np.matmul(b2.reshape(dim**2, dim**2), A_mat))
+    
+    return res_mat.reshape(dim, dim, dim, dim)
 
 def evaluate_comm_222_ph(occs, a2, b2):
     """
