@@ -12,7 +12,7 @@ import copy
 import numpy as np
 
 from typing import TypeAlias, Tuple, List
-from NuLattice.constants import hbarc, mass
+from .constants import hbarc, mass
 
 LatticeState : TypeAlias = List[int]
 """
@@ -60,7 +60,22 @@ def phys_unit(a_lat: float) -> float:
     return 0.5 * hbarc**2 / (mass * a_lat**2)
 
 
-def get_sp_basis(myL: int, spin: int = 2, isospin: int = 2) -> SingleParticleBasis:
+def _get_sp_basis_list(myL: int, spin: int = 2, isospin: int = 2) -> SingleParticleBasis:
+    sp_basis = []
+    for i in range(myL):
+        for j in range(myL):
+            for k in range(myL):
+                for iso in range(isospin):
+                    for sz in range(spin):
+                        sp_basis.append([i, j, k, iso, sz])
+    return sp_basis
+
+
+def _get_sp_basis_mgrid(myL: int, spin: int = 2, isospin: int = 2) -> SingleParticleBasis:
+    lattice_sites = np.mgrid[0:myL, 0:myL, 0:myL, 0:isospin, 0:spin]
+    return lattice_sites.reshape(5, -1).T
+
+def get_sp_basis(myL: int, spin: int = 2, isospin: int = 2) -> SingleParticleBasis:    
     """
     Builds a 3D lattice for nucleons with spin isospin degrees of freedom
 
@@ -76,15 +91,36 @@ def get_sp_basis(myL: int, spin: int = 2, isospin: int = 2) -> SingleParticleBas
                 respectively
     :rtype: list[(int, int, int, int, int)]
     """
-    sp_basis = []
-    for i in range(myL):
-        for j in range(myL):
-            for k in range(myL):
-                for iso in range(isospin):
-                    for sz in range(spin):
-                        sp_basis.append([i, j, k, iso, sz])
-    return sp_basis
+    return _get_sp_basis_mgrid(myL, spin, isospin).tolist()
 
+def _state2index_original(state: LatticeState, myL: int, spin: int = 2, isospin: int = 2) -> int:
+    i = state[0]
+    j = state[1]
+    k = state[2]
+    tz = state[3]
+    sz = state[4]
+    index = (
+        i * myL**2 * isospin * spin
+        + j * myL * isospin * spin
+        + k * isospin * spin
+        + tz * spin
+        + sz
+    )
+    return index
+
+
+def _state2index_strided(state: LatticeState, myL: int, spin: int = 2, isospin: int = 2) -> int:
+    k_stride = isospin * spin
+    j_stride = myL * k_stride
+    i_stride = myL * j_stride
+
+    return (
+        state[0] * i_stride + 
+        state[1] * j_stride + 
+        state[2] * k_stride + 
+        state[3] * spin +
+        state[4]
+    )
 
 def state2index(state: LatticeState, myL: int, spin: int = 2, isospin: int = 2) -> int:
     """
@@ -102,20 +138,22 @@ def state2index(state: LatticeState, myL: int, spin: int = 2, isospin: int = 2) 
     :return:    index as an integer
     :rtype: int
     """
-    i = state[0]
-    j = state[1]
-    k = state[2]
-    tz = state[3]
-    sz = state[4]
-    index = (
-        i * myL**2 * isospin * spin
-        + j * myL * isospin * spin
-        + k * isospin * spin
-        + tz * spin
-        + sz
-    )
-    return index
+    return _state2index_strided(state, myL, spin, isospin)
 
+def _get_lattice_list(myL: int) -> LatticeSites:
+    lattice = []
+    for i in range(myL):
+        for j in range(myL):
+            for k in range(myL):
+                lattice.append([i, j, k])
+    return lattice
+
+def _get_lattice_mgrid(myL: int) -> LatticeSites:
+    """
+    builds a 3D lattice via np.mgrid
+    """
+    lattice_sites = np.mgrid[0:myL, 0:myL, 0:myL]
+    return lattice_sites.reshape(3, -1).T
 
 def get_lattice(myL: int) -> LatticeSites:
     """
@@ -127,13 +165,7 @@ def get_lattice(myL: int) -> LatticeSites:
                 by i, j, k (from 0 to myL-1) in direction 1, 2, 3
     :rtype:     list[(int, int, int)]
     """
-    lattice = []
-    for i in range(myL):
-        for j in range(myL):
-            for k in range(myL):
-                lattice.append([i, j, k])
-    return lattice
-
+    return _get_lattice_mgrid(myL).tolist()
 
 def site2index(site: LatticeSite, myL: int) -> int:
     """
@@ -371,7 +403,7 @@ def contacts(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: int=
     return matele
 
 
-def NNNcontact(v3NF: float, lattice: list[int], myL: int, spin:int=2, isospin: int=2) -> ThreeBodyElement:
+def NNNcontact(v3NF: float, lattice: LatticeSites, myL: int, spin:int=2, isospin: int=2) -> ThreeBodyElement:
     """
     computes matrix elements for three-body onsite contact
 
