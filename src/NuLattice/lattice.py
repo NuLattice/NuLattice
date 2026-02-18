@@ -186,7 +186,7 @@ def site2index(site: LatticeSite, myL: int) -> int:
     return index
 
 
-def right(site_location: int, myL: int) -> int:
+def _right_if(site_location: int, myL: int) -> int:
     """
     moves a site to the right in 1D, respecting periodic boundary conditions
 
@@ -203,8 +203,10 @@ def right(site_location: int, myL: int) -> int:
         res = 0
     return res
 
+def _right_modulus(site_location: int, myL: int):
+    return (site_location + 1) % myL
 
-def left(site_location: int, myL: int):
+def _left_if(site_location: int, myL: int) -> int:
     """
     moves a site to the left in 1D, respecting periodic boundary conditions
 
@@ -221,6 +223,21 @@ def left(site_location: int, myL: int):
         res = myL - 1
     return res
 
+def _left_modulus(site_location: int, myL: int):
+    """
+    moves a site to the left in 1D, respecting periodic boundary conditions
+
+    :param site_location:    integer location of the site
+    :type site_location:     int
+    :param myL:     number of lattice sites in each direction
+    :type myL:      int
+    :return:        index of site one to the left of site with index site
+    :rtype:         int
+    """
+    return (site_location - 1) % myL
+
+left = _left_modulus
+right = _right_modulus
 
 def Tkin(lattice: LatticeSite, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
     """
