@@ -117,3 +117,23 @@ def test_NNN_np(benchmark):
     p["myL"] = 16
     lat = lattice.get_lattice(p["myL"])
     benchmark(lattice._NNNcontact_np, p["v3NF"], lat, p["myL"])
+
+@pytest.mark.tkin
+def test_Tkin_original(benchmark):
+    """
+    Benchmarks the speedup of the vectorized contacts.
+    """
+
+    myL = 16
+    lat = lattice.get_lattice(myL)
+    benchmark(lattice._Tkin_original,lat, myL)
+    
+@pytest.mark.tkin
+def test_Tkin_np(benchmark):
+    """
+    Benchmarks the speedup of the vectorized contacts.
+    """
+
+    myL = 16
+    lat = lattice.get_lattice(myL)
+    benchmark(lattice._Tkin_np, lat, myL)

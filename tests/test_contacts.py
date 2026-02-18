@@ -114,7 +114,7 @@ def test_tkin_equivalence():
     lat_sites = lattice.get_lattice(myL)
     
     legacy_res = lattice._Tkin_original(lat_sites, myL)
-    opt_res = lattice._Tkin_np(lat_sites, myL)
+    opt_res = lattice._Tkin_np(lat_sites, myL).tolist()
     
     legacy_res.sort()
     opt_res.sort()

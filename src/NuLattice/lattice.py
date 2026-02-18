@@ -231,21 +231,6 @@ def right(site_location: int, myL: int) -> int:
     return _right_modulus(site_location, myL)
 
 def _Tkin_original(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
-    """
-    computes 1-body kinetic energy matrix elements. Really: the negative dimensionless laplacian
-
-    :param lattice: list of lattice sites returned by get_lattice
-    :type lattice:  list[(int, int, int)]
-    :param myL:     number of lattice sites in each direction
-    :type myL:      int
-    :param spin:    Optional; number of spin degrees of freedom
-    :type spin:     int
-    :param isospin: Optional; number of isospin degrees of freedom
-    :type isospin:  int
-    :return:    list of tuples [i, j, value] where i and j are indices in the single-particle
-                basis, and value is the value of the matrix element Tij
-    :rtype:     list[(int, int, float)]
-    """
     mat = []
     for site in lattice:
         i = site[0]
@@ -303,9 +288,10 @@ def _Tkin_np(lattice_sites: LatticeSites, myL: int, spin: int=2, isospin: int=2)
     
     # get all single-particle indices
     # shape: (n_total,)
-    indices = np.arange(len(lattice_sites) * isospin * spin)
+    basis = _get_sp_basis_np(myL, spin, isospin)
+    indices = np.arange(len(basis))
     
-    # Diagonal elements (2.0 * 3 dimensions = 6.0)
+    # Diagonal elements (2 * 3 dimensions = 6)
     # <p|T|p>
     mat = np.column_stack([indices, indices, np.full(len(indices), 6.0)])
     
@@ -313,10 +299,8 @@ def _Tkin_np(lattice_sites: LatticeSites, myL: int, spin: int=2, isospin: int=2)
     # For each spatial dimension (x, y, z), we find the index of the neighbor
     # NOTE(vivek): The 'neighbor' in a periodic lattice is just a cyclic shift of indices
     # need to be careful to only shift the spatial part, not spin/isospin
-    all_hops = []
-    for dim, stride in enumerate([i_stride, j_stride, k_stride]):
-        
-        basis = np.array(get_sp_basis(myL, spin, isospin))
+    all_hops = [mat]
+    for dim in range(3):
         neighbor_states = basis.copy()
         neighbor_states[:, dim] = (neighbor_states[:, dim] + 1) % myL
         
@@ -330,9 +314,24 @@ def _Tkin_np(lattice_sites: LatticeSites, myL: int, spin: int=2, isospin: int=2)
         hop_left = np.column_stack([neighbor_indices, indices, np.full(len(indices), -1.0)])
         all_hops.extend([hop_right, hop_left])
         
-    return np.vstack([mat] + all_hops)
+    return np.vstack(all_hops)
 
 def Tkin(lattice: LatticeSite, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
+    """
+    computes 1-body kinetic energy matrix elements. Really: the negative dimensionless laplacian
+
+    :param lattice: list of lattice sites returned by get_lattice
+    :type lattice:  list[(int, int, int)]
+    :param myL:     number of lattice sites in each direction
+    :type myL:      int
+    :param spin:    Optional; number of spin degrees of freedom
+    :type spin:     int
+    :param isospin: Optional; number of isospin degrees of freedom
+    :type isospin:  int
+    :return:    list of tuples [i, j, value] where i and j are indices in the single-particle
+                basis, and value is the value of the matrix element Tij
+    :rtype:     list[(int, int, float)]
+    """
     return _Tkin_original(lattice, myL, spin, isospin)
 
 def contacts(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> TwoBodyElement:
