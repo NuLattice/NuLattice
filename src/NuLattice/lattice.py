@@ -818,12 +818,6 @@ def _p_np(lattice_sites: LatticeSites, myL: int, dim: int, spin: int=2, isospin:
     neighbor_indices = (neighbor_spatial_base[:, None] + local_offsets).flatten()
     
     
-    # Hop Right: [indx1, indx2, +0.5i]
-    # Hop Left: [indx2, indx1, -0.5i]
-    # val = -0.5j
-    # hop_r = np.column_stack([indices, neighbor_indices, np.full(n_total, val)])
-    # hop_l = np.column_stack([neighbor_indices, indices, np.full(n_total, -val)])
-    #
     res = np.empty((n_total * 2, 3), dtype=object)
     
     # Right hops
