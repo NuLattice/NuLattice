@@ -215,7 +215,6 @@ def __evaluate_comm_221_naive(occs, a2, b2):
         - opt_einsum.contract("p,q,r,irpq,pqjr->ij", occs, occs, occsbar, b2, a2)
     )
 
-
 def evaluate_comm_221(occs, a2, b2):
     """
     Evaluates the [2,2]->1 commutator contribution using optimized implementation
@@ -233,7 +232,10 @@ def evaluate_comm_221(occs, a2, b2):
     :return:        One-body commutator contribution
     :rtype:         numpy array
     """
-    # This version is a factor of 3 faster than the version above
+    return _evaluate_comm_221_np(occs, a2, b2)
+
+def _evaluate_comm_221_original(occs, a2, b2):
+    # This version is a factor of 3 faster than the naive
     # Half comes from combining occupations
     # The other half comes from massaging things into a form where opt_einsum performs a BLAS GEMM
     # rather than a tensor_dot TDOT
@@ -253,6 +255,27 @@ def evaluate_comm_221(occs, a2, b2):
         - opt_einsum.contract("irpq,rpqj->ij", b2_with_occs, a2_trans, optimize="greedy")
     )
 
+# NOTE(vivek): Optimization: Reshaping for 2D GEMM.
+# Logic: The contraction 'irpq, pqjr -> ij' is an O(N^4) operation.
+# By combining 'p,q' --> standard matrix-matrix mul
+def _evaluate_comm_221_np(occs, a2, b2):
+    dim = len(occs)
+    occsbar = 1 - occs
+
+    a_weighted = (
+        (a2 * occsbar[:, None, None, None] * occsbar[None, :, None, None] * occs[None, None, :, None]) + 
+        (a2 * occs[:, None, None, None] * occs[None, :, None, None] * occsbar[None, None, :, None])
+    )
+
+    b_weighted = (
+        (b2 * occsbar[:, None, None, None] * occsbar[None, :, None, None] * occs[None, None, :, None]) +
+        (b2 * occs[:, None, None, None] * occs[None, :, None, None] * occsbar[None, None, :, None])
+    )
+    # Reshape to (N, N^3) and (N^3, N)
+    res = 0.5 * (np.matmul(a_weighted.reshape(dim, -1), b2.reshape(dim**3, dim).reshape(-1, dim)) - 
+                 np.matmul(b_weighted.reshape(dim, -1), a2.reshape(dim**3, dim).reshape(-1, dim)))
+    
+    return res
 
 def __evaluate_comm_222_naive(occs, a2, b2):
     """
@@ -316,7 +339,6 @@ def evaluate_comm_222_pphh(occs, a2, b2):
         opt_einsum.contract("ijpq,pqkl->ijkl", a2_with_occs, b2, optimize="greedy")
         - opt_einsum.contract("ijpq,pqkl->ijkl", b2_with_occs, a2, optimize="greedy")
     )
-
 
 def evaluate_comm_222_ph(occs, a2, b2):
     """

@@ -47,6 +47,16 @@ def test_comm_221_equivalence(imsrg_setup):
     
     assert_allclose(res_np, res_orig, atol=1e-15)
 
+@pytest.mark.comm_221
+def test_comm_221_einsum(benchmark, imsrg_setup):
+    setup = imsrg_setup
+    benchmark(comm._evaluate_comm_221_original, setup["occs"], setup["a2"], setup["b2"])
+
+@pytest.mark.comm_221
+def test_comm_221_np(benchmark, imsrg_setup):
+    setup = imsrg_setup
+    benchmark(comm._evaluate_comm_221_np, setup["occs"], setup["a2"], setup["b2"])
+
 def test_comm_222_pphh_equivalence(imsrg_setup):
     """Checks the O(N^6) pphh bottleneck for numerical consistency."""
     setup = imsrg_setup
