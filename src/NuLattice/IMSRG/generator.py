@@ -12,7 +12,7 @@ import numpy as np
 import opt_einsum
 
 
-def get_hole_spes(occs, f):
+def get_hole_spes(occs: np.ndarray, f: np.ndarray) -> np.ndarray:
     """
     Extracts single-particle energies for hole states from the Fock matrix
 
@@ -26,7 +26,7 @@ def get_hole_spes(occs, f):
     return np.multiply(occs, np.diag(f))
 
 
-def get_particle_spes(occs, f, delta=0.0):
+def get_particle_spes(occs: np.ndarray, f: np.ndarray, delta: float =0.0):
     """
     Extracts single-particle energies for particle states from the Fock matrix
 
@@ -42,7 +42,7 @@ def get_particle_spes(occs, f, delta=0.0):
     return np.multiply(1 - occs, np.diag(f) + delta)
 
 
-def build_1b_energy_difference(occs, f, delta=0.0):
+def build_1b_energy_difference(occs: np.ndarray, f: np.ndarray, delta: float =0.0) -> np.ndarray:
     """
     Constructs one-body energy differences for IMSRG generator denominators
 
@@ -61,7 +61,7 @@ def build_1b_energy_difference(occs, f, delta=0.0):
     """
     return _build_1b_energy_difference_original(occs, f, delta)
 
-def _build_1b_energy_difference_original(occs, f, delta=0.0):
+def _build_1b_energy_difference_original(occs: np.ndarray, f: np.ndarray, delta: float =0.0):
     spe_h = get_hole_spes(occs, f)
     spe_p = get_particle_spes(occs, f, delta)
 
@@ -75,7 +75,7 @@ def _build_1b_energy_difference_original(occs, f, delta=0.0):
     # 1e-20 prevents division by 0 when we invert the energy differences to produce energy denominators
     return f_hp - opt_einsum.contract("ia->ai", f_hp) + 1e-20
 
-def _build_1b_energy_difference_np(occs, f, delta=0.0):
+def _build_1b_energy_difference_np(occs: np.ndarray, f: np.ndarray, delta: float =0.0):
     spe_h = np.diag(f) * occs
     spe_p = (np.diag(f) + delta) * (1 - occs)
     
@@ -84,7 +84,7 @@ def _build_1b_energy_difference_np(occs, f, delta=0.0):
     
     return f_hp - f_hp.T + 1e-20
 
-def build_2b_energy_difference(occs, f, delta=0.0):
+def build_2b_energy_difference(occs: np.ndarray, f: np.ndarray, delta: float =0.0) -> np.ndarray:
     """
     Constructs two-body energy differences for IMSRG generator denominators
 
@@ -106,7 +106,7 @@ def build_2b_energy_difference(occs, f, delta=0.0):
 
 # NOTE(vivek): nested broadcasting instead of 4+1 contractions
 # single pass broadcast instead of 4 O(N**4) contractions
-def _build_2b_energy_difference_np(occs, f, delta=0.0):
+def _build_2b_energy_difference_np(occs: np.ndarray, f: np.ndarray, delta: float =0.0):
     spe_h = np.diag(f) * occs
     spe_p = (np.diag(f) + delta) * (1 - occs)
 
@@ -116,7 +116,7 @@ def _build_2b_energy_difference_np(occs, f, delta=0.0):
     return gamma_hhpp - gamma_hhpp.transpose(2, 3, 0, 1) + 1e-20
 
 
-def _build_2b_energy_difference_original(occs, f, delta):
+def _build_2b_energy_difference_original(occs: np.ndarray, f: np.ndarray, delta: float =0.0):
     spe_h = get_hole_spes(occs, f)
     spe_p = get_particle_spes(occs, f, delta)
 
@@ -134,7 +134,7 @@ def _build_2b_energy_difference_original(occs, f, delta):
     return gamma_hhpp - opt_einsum.contract("ijab->abij", gamma_hhpp) + 1e-20
 
 
-def build_1b_arctan_generator(occs, f, delta=0.0):
+def build_1b_arctan_generator(occs: np.ndarray, f: np.ndarray, delta: float =0.0) -> np.ndarray:
     """
     Constructs the one-body part of the arctan IMSRG generator
 
@@ -153,7 +153,7 @@ def build_1b_arctan_generator(occs, f, delta=0.0):
     :return:        One-body arctangent generator matrix elements
     :rtype:         numpy array
     """
-    return _build_1b_arctan_generator_original(occs, f, delta)
+    return _build_1b_arctan_generator_np(occs, f, delta)
 
 def _build_1b_arctan_generator_original(occs, f, delta=0.0):
     e_diff = build_1b_energy_difference(occs, f, delta)
@@ -187,7 +187,7 @@ def _build_1b_arctan_generator_np(occs, f, delta=0.0):
     
     return eta
 
-def build_2b_arctan_generator(occs, f, gamma, delta=0.0):
+def build_2b_arctan_generator(occs: np.ndarray, f: np.ndarray, gamma: np.ndarray, delta: float =0.0) -> np.ndarray:
     """
     Constructs the two-body part of the arctan IMSRG generator
 
@@ -208,7 +208,7 @@ def build_2b_arctan_generator(occs, f, gamma, delta=0.0):
     :return:        Two-body arctangent generator matrix elements
     :rtype:         numpy array
     """
-    return _build_2b_arctan_generator_original(occs, f, gamma, delta)
+    return _build_2b_arctan_generator_np(occs, f, gamma, delta)
 
 def  _build_2b_arctan_generator_original(occs, f, gamma, delta=0.0):
     e_diff = build_2b_energy_difference(occs, f, delta)
