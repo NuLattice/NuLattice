@@ -59,6 +59,9 @@ def build_1b_energy_difference(occs, f, delta=0.0):
     :return:        Matrix of energy differences for one-body generator denominators
     :rtype:         numpy array
     """
+    return _build_1b_energy_difference_original(occs, f, delta)
+
+def _build_1b_energy_difference_original(occs, f, delta=0.0):
     spe_h = get_hole_spes(occs, f)
     spe_p = get_particle_spes(occs, f, delta)
 
@@ -72,6 +75,14 @@ def build_1b_energy_difference(occs, f, delta=0.0):
     # 1e-20 prevents division by 0 when we invert the energy differences to produce energy denominators
     return f_hp - opt_einsum.contract("ia->ai", f_hp) + 1e-20
 
+def _build_1b_energy_difference_np(occs, f, delta=0.0):
+    spe_h = np.diag(f) * occs
+    spe_p = (np.diag(f) + delta) * (1 - occs)
+    
+    # (N, 1) - (1, N) -> (N, N)
+    f_hp = spe_h[:, None] - spe_p[None, :]
+    
+    return f_hp - f_hp.T + 1e-20
 
 def build_2b_energy_difference(occs, f, delta=0.0):
     """
@@ -90,6 +101,22 @@ def build_2b_energy_difference(occs, f, delta=0.0):
     :return:        Tensor of energy differences for two-body generator denominators
     :rtype:         numpy array
     """
+    return _build_2b_energy_difference_original(occs, f, delta)
+
+
+# NOTE(vivek): nested broadcasting instead of 4+1 contractions
+# single pass broadcast instead of 4 O(N**4) contractions
+def _build_2b_energy_difference_np(occs, f, delta=0.0):
+    spe_h = np.diag(f) * occs
+    spe_p = (np.diag(f) + delta) * (1 - occs)
+
+    gamma_hhpp = (spe_h[:, None, None, None] + spe_h[None, :, None, None] - 
+                  spe_p[None, None, :, None] - spe_p[None, None, None, :])
+
+    return gamma_hhpp - gamma_hhpp.transpose(2, 3, 0, 1) + 1e-20
+
+
+def _build_2b_energy_difference_original(occs, f, delta):
     spe_h = get_hole_spes(occs, f)
     spe_p = get_particle_spes(occs, f, delta)
 
@@ -165,6 +192,9 @@ def build_2b_arctan_generator(occs, f, gamma, delta=0.0):
     :return:        Two-body arctangent generator matrix elements
     :rtype:         numpy array
     """
+    return _build_2b_arctan_generator_original(occs, f, gamma, delta)
+
+def  _build_2b_arctan_generator_original(occs, f, gamma, delta=0.0):
     e_diff = build_2b_energy_difference(occs, f, delta)
 
     # Mask to isolate hhpp and pphh matrix elements
@@ -181,3 +211,22 @@ def build_2b_arctan_generator(occs, f, gamma, delta=0.0):
             hhpp_mask,
         )
     )
+
+def _build_2b_arctan_generator_np(occs, f, gamma, delta=0.0):
+    e_diff = _build_2b_energy_difference_np(occs, f, delta)
+
+    # 1 byte per bool vs 8 bytes per float
+    h = (occs > 0.5)
+    p = (occs < 0.5)
+    
+    # Identify hhpp and pphh sectors
+    hhpp_mask = (h[:, None, None, None] & h[None, :, None, None] & 
+                 p[None, None, :, None] & p[None, None, None, :])
+    pphh_mask = hhpp_mask.transpose(2, 3, 0, 1)
+    
+    mask = hhpp_mask | pphh_mask
+    
+    eta = np.zeros_like(gamma)
+    eta[mask] = 0.5 * np.arctan(2 * gamma[mask] / e_diff[mask])
+    
+    return eta
