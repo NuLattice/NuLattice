@@ -13,7 +13,7 @@ import numpy as np
 from itertools import combinations
 
 from typing import TypeAlias, Tuple, List
-from .constants import hbarc, mass
+from NuLattice.constants import hbarc, mass
 
 LatticeState : TypeAlias = List[int]
 """
