@@ -168,3 +168,98 @@ def test_init_density_full():
     dens = hf.init_density(nstat, hole)
     
     assert_allclose(dens, np.eye(3))
+
+@pytest.fixture
+def hf_data():
+    """Generates a consistent physical system for testing."""
+    nstat = 40
+    npart = 8
+    np.random.seed(42)
+    
+    # 1-body: [p, q, val]
+    op1 = [[i, i, float(i*0.5)] for i in range(nstat)]
+    
+    # 2-body: [p, q, r, s, val]
+    op2 = []
+    for _ in range(100):
+        indices = np.random.randint(0, nstat, 4).tolist()
+        op2.append(indices + [np.random.normal()])
+        
+    # 3-body: [p, q, r, s, t, u, val]
+    op3 = []
+    for _ in range(50):
+        indices = np.random.randint(0, nstat, 6).tolist()
+        op3.append(indices + [np.random.normal()])
+        
+    # Initial density
+    dens = np.zeros((nstat, nstat))
+    for i in range(npart):
+        dens[i, i] = 1.0
+        
+    return {
+        "op1": op1, "op2": op2, "op3": op3, 
+        "dens": dens, "npart": npart
+    }
+
+@pytest.mark.hf_energy
+def test_hf_energy_equivalence(hf_data):
+    """Verifies that the optimized _np version yields identical physics to _original."""
+    d = hf_data
+    erg_orig = hf.HF_energy(d["op1"], d["op2"], d["op3"], d["dens"])
+    # erg_np = hf.HF_energy_np(d["op1"], d["op2"], d["op3"], d["dens"])
+    assert pytest.approx(erg_np) == erg_orig
+   
+
+@pytest.mark.hf_energy
+def test_hf_energy_speed_original(benchmark, hf_data):
+    """Benchmarks the unoptimized Hartree-Fock iteration."""
+    d = hf_data
+    result = benchmark(hf.HF_energy, d["op1"], d["op2"], d["op3"], d["dens"])
+
+# @pytest.mark.hf_energy
+# def test_hf_energy_speed_np(benchmark, hf_data):
+#     """Benchmarks the optimized NumPy/BLAS Hartree-Fock iteration."""
+#     d = hf_data
+#     result = benchmark(hf.HF_energy_np, d["op1"], d["op2"], d["op3"], d["dens"])
+    
+    assert result[0] is not None
+@pytest.mark.hf_iter
+def test_hf_iter_equivalence(hf_data):
+    """Verifies that the optimized _np version yields identical physics to _original."""
+    d = hf_data
+    
+    # Run original iteration
+    e_orig, dens_orig, vecs_orig = hf._HF_iter_original(d["op1"], d["op2"], d["op3"], d["dens"])
+    
+    # Run optimized iteration
+    e_np, dens_np, vecs_np = hf._HF_iter_np(d["op1"], d["op2"], d["op3"], d["dens"])
+    
+    # Check Energy (Scalar)
+    assert pytest.approx(e_np) == e_orig
+    
+    np.testing.assert_allclose(dens_np, dens_orig, atol=1e-13, 
+                               err_msg="Density matrices diverged between original and NP versions.")
+
+@pytest.mark.hf_iter
+def test_hf_iter_speed_original(benchmark, hf_data):
+    """Benchmarks the unoptimized Hartree-Fock iteration."""
+    d = hf_data
+    result = benchmark(hf._HF_iter_original, d["op1"], d["op2"], d["op3"], d["dens"])
+    assert result[0] is not None
+
+@pytest.mark.hf_iter
+def test_hf_iter_speed_np(benchmark, hf_data):
+    """Benchmarks the optimized NumPy/BLAS Hartree-Fock iteration."""
+    d = hf_data
+    result = benchmark(hf._HF_iter_np, d["op1"], d["op2"], d["op3"], d["dens"])
+    
+    assert result[0] is not None
+
+@pytest.mark.solve_hf
+def test_solve_hf_speed_np(benchmark, hf_data):
+    d = hf_data
+    result = benchmark(hf.solve_HF, d["op1"], d["op2"], d["op3"], d["dens"])
+    
+    assert result[0] is not None
+
+

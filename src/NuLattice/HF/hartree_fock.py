@@ -250,10 +250,10 @@ def init_density(nstat,hole):
         dens[i,i] = 1.0
     return dens
 
-def _init_density_np(nstat, hole):
-    dens = np.zeros((nstat,nstat))
-    dens[list(hole), list(hole)] = 1.0
-    return dens
+# def _init_density_np(nstat, hole):
+#     dens = np.zeros((nstat,nstat))
+#     dens[list(hole), list(hole)] = 1.0
+#     return dens
 
 
 def HF_energy(op1, op2, op3, dens):
@@ -276,9 +276,8 @@ def HF_energy(op1, op2, op3, dens):
     dum = get_1body_matrix(op1,nstat)
     dum += 0.5*contract_2nf(op2,dens)
     dum += (1.0/6.0)*contract_3nf(op3,dens)
-    erg = contract("ij,ji",dum,dens)
+    erg = np.sum(dum * dens.T)
     return erg
-
 
 def HF_iter(op1, op2, op3, dens, mix=0.5):
     """
@@ -299,6 +298,9 @@ def HF_iter(op1, op2, op3, dens, mix=0.5):
                  the HF Hamiltonian
     :rtype:      float, numpy.array((:,:), dtype=float), numpy.array((:,:), dtype=float)
     """
+    return _HF_iter_np(op1, op2, op3, dens, mix=0.5)
+
+def _HF_iter_original(op1, op2, op3, dens, mix=0.5):
     npart=round(np.trace(dens)) # rounds to nearest integer
     erg = HF_energy(op1, op2, op3, dens)
     hf = make_HF_ham(op1, op2, op3, dens)
@@ -306,6 +308,33 @@ def HF_iter(op1, op2, op3, dens, mix=0.5):
     new_dens=contract("pi,qi->pq", vecs[:,0:npart], vecs[:,0:npart])
     res_dens = mix*new_dens + (1.0-mix)*dens
     return erg, res_dens, vecs
+
+def _HF_iter_np(op1, op2, op3, dens, mix=0.5):
+    npart = int(round(np.trace(dens)))
+    
+    nstat = dens.shape[0]
+    h1 = get_1body_matrix(op1, nstat)
+    gamma = contract_2nf(op2, dens)
+    omega = contract_3nf(op3, dens)
+    
+    e_op = h1 + 0.5 * gamma + (1.0/6.0) * omega
+    erg = np.dot(e_op.ravel(), dens.T.ravel())
+    
+    hf_ham = h1 + gamma + 0.5 * omega
+    
+    vals, vecs = np.linalg.eigh(hf_ham)
+    
+    # 'pi,qi->pq' einsum
+    occ = vecs[:, :npart]
+    new_dens = occ @ occ.T
+    
+    if mix != 1.0:
+        res_dens = mix * new_dens + (1.0 - mix) * dens
+    else:
+        res_dens = new_dens
+        
+    return erg, res_dens, vecs
+
 
 def solve_HF(op1, op2, op3, dens, mix=0.5, eps=1.e-8, max_iter=100, verbose=False):
     """
