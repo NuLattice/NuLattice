@@ -8,6 +8,16 @@ __license__   = "BSD-3-Clause"
 __date__      = "2025-07-26"
 
 import numpy as np
+
+try:
+    from numba import njit
+except ImportError:
+    print("Warning: Numba not detected. Some functions may run slower")
+    def njit(func=None, **kwargs):
+        if func is None:
+            return lambda f: f
+        return func
+
 from opt_einsum import contract
 
 def get_1body_matrix(myTkin,nstat):
@@ -49,7 +59,7 @@ def contract_2nf(v2,dens):
     return res
 
 
-def contract_3nf(w3,dens):
+def contract_3nf(w3, dens):
     """
     takes list of three-body matrix elements and contracts them with the density to get a one-body operator
 
@@ -60,6 +70,9 @@ def contract_3nf(w3,dens):
     :return:     one-body operator of the same shape as the density matrix dens
     :rtype:      numpy.array((:,:), dtype=float)
     """
+    return _contract_3nf_np(w3, dens)
+
+def _contract_3nf_original(w3,dens):
     res = np.zeros_like(dens)
     for mat_ele in w3:  # we need all 36 antisymmetric combinations of the ket (abc) and bra (def) single-particle states
         [a, b, c, d, e, f, val] = mat_ele
@@ -101,6 +114,52 @@ def contract_3nf(w3,dens):
                          +dens[b,e]*dens[a,d] )
     return res
 
+@njit
+def _contract_3nf_kernel(w3_indices, w3_vals, dens):
+    nstat = dens.shape[0]
+    res = np.zeros((nstat, nstat))
+    
+    for i in range(len(w3_vals)):
+        a, b, c, d, e, f = w3_indices[i]
+        val = w3_vals[i]
+        
+        rbe = dens[b, e]
+        rcf = dens[c, f]
+        rce = dens[c, e]
+        rbf = dens[b, f]
+        
+        rae = dens[a, e]
+        raf = dens[a, f]
+        
+        rbd = dens[b, d]
+        rcd = dens[c, d]
+        rad = dens[a, d]
+        
+        # res[?, d]
+        p_bc_ef = rbe * rcf - rce * rbf
+        res[a, d] += val * 2.0 * p_bc_ef
+        res[b, d] += val * 2.0 * (rce * raf - rae * rcf)
+        res[c, d] += val * 2.0 * (rae * rbf - rbe * raf)
+        
+        # res[?, e]
+        p_bc_fd = rbf * rcd - rcf * rbd
+        res[a, e] += val * 2.0 * p_bc_fd
+        res[b, e] += val * 2.0 * (rcf * rad - raf * rcd)
+        res[c, e] += val * 2.0 * (raf * rbd - rbf * rad)
+        
+        # res[?, f]
+        p_bc_de = rbe * rcd - rce * rbd
+        res[a, f] += val * 2.0 * (rbd * rce - rcd * rbe)
+        res[b, f] += val * 2.0 * (rce * raf - rae * rcf)
+        res[c, f] += val * 2.0 * (rad * rbe - rbd * rae)
+        
+    return res
+
+def _contract_3nf_np(w3, dens):
+    w3_arr = np.array(w3)
+    w3_indices = w3_arr[:, :6].astype(np.int32)
+    w3_vals = w3_arr[:, 6]
+    return _contract_3nf_kernel(w3_indices, w3_vals, dens)
 
 def make_HF_ham(op1,op2,op3,dens):
     """
