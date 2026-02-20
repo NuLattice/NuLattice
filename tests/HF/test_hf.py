@@ -115,3 +115,56 @@ def test_contract_2nf_benchmark_original(benchmark, hf_1nf_2nf_setup):
 @pytest.mark.contract_2nf
 def test_contract_2nf_benchmark_np(benchmark, hf_1nf_2nf_setup):
     benchmark(hf._contract_2nf_fastest, hf_1nf_2nf_setup["v2"], hf_1nf_2nf_setup["dens"])
+
+
+@pytest.mark.init_density
+def test_init_density(benchmark):
+    nstat = 10
+    hole = (0, 2, 5)
+    benchmark(hf.init_density, nstat, hole)
+
+# @pytest.mark.init_density
+# def test_init_density_np(benchmark):
+#     nstat = 10
+#     hole = (0, 2, 5)
+#     benchmark(hf.init_density_np, nstat, hole)
+
+@pytest.mark.init_density
+def test_init_density_diagonal_occupation():
+    """Verifies that init_density creates the correct diagonal occupation matrix."""
+    nstat = 10
+    hole = (0, 2, 5)
+    
+    dens = hf.init_density(nstat, hole)
+    
+    assert dens.shape == (nstat, nstat)
+    
+    assert np.trace(dens) == len(hole)
+    
+    for i in range(nstat):
+        if i in hole:
+            assert dens[i, i] == 1.0, f"State {i} should be occupied."
+        else:
+            assert dens[i, i] == 0.0, f"State {i} should be empty."
+            
+    off_diag = dens - np.diag(np.diag(dens))
+    assert np.all(off_diag == 0.0), "Density matrix must be diagonal at initialization."
+
+
+@pytest.mark.init_density
+def test_init_density_empty():
+    """Ensures the function handles zero occupied states (vacuum)."""
+    nstat = 4
+    hole = ()
+    dens = hf.init_density(nstat, hole)
+    
+    assert_allclose(dens, np.zeros((4, 4)))
+
+@pytest.mark.init_density
+def test_init_density_full():
+    """Ensures it handles a completely filled basis."""
+    nstat = 3
+    hole = (0, 1, 2)
+    dens = hf.init_density(nstat, hole)
+    
+    assert_allclose(dens, np.eye(3))

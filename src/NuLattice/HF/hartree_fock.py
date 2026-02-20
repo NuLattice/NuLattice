@@ -250,6 +250,11 @@ def init_density(nstat,hole):
         dens[i,i] = 1.0
     return dens
 
+def _init_density_np(nstat, hole):
+    dens = np.zeros((nstat,nstat))
+    dens[list(hole), list(hole)] = 1.0
+    return dens
+
 
 def HF_energy(op1, op2, op3, dens):
     """
