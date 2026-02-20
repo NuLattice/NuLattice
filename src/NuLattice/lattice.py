@@ -378,7 +378,8 @@ def Tkin(lattice: LatticeSite, myL: int, spin: int=2, isospin: int=2) -> OneBody
                 basis, and value is the value of the matrix element Tij
     :rtype:     list[(int, int, float)]
     """
-    return _Tkin_np(lattice, myL, spin, isospin).tolist()
+    res = _Tkin_np(lattice, myL, spin, isospin).tolist()
+    return [[int(i), int(j), int(val)] for i, j, val in res]
 
 def contacts(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> TwoBodyElement:
     """
@@ -401,7 +402,8 @@ def contacts(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: int=
                 All elements have i<j and k<l
     :rtype:         list[(int, int, int, int, float)]
     """
-    return _contacts_np(vT1, vS1, lattice, myL, spin, isospin).tolist()
+    res = _contacts_np(vT1, vS1, lattice, myL, spin, isospin)
+    return [[int(p), int(q), int(r), int(s), v] for p, q, r, s, v in res]
 
 # NOTE(vivek): looks O(L**3 * (iso * spin)**4)
 def _contacts_original(vT1: float, vS1: float, lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> TwoBodyElement:
@@ -674,7 +676,8 @@ def NNNcontact(v3NF: float, lattice: LatticeSites, myL: int, spin:int=2, isospin
                 All elements have i1<i2<i3 and j1<j2<j3
     :rtype:             list[(int, int, int, int, int, int, float)]
     """
-    return _NNNcontact_np(v3NF, lattice, myL, spin, isospin).tolist()
+    res = _NNNcontact_np(v3NF, lattice, myL, spin, isospin)
+    return [[int(p), int(q), int(r), int(s), int(t), int(u), v] for p, q, r, s, t, u, v in res]
 
     
 def _p_x_original(lattice: LatticeSites, myL: int, spin: int=2, isospin: int=2) -> OneBodyElement:
