@@ -136,19 +136,16 @@ def _contract_3nf_kernel(w3_indices, w3_vals, dens):
         rad = dens[a, d]
         
         # res[?, d]
-        p_bc_ef = rbe * rcf - rce * rbf
-        res[a, d] += val * 2.0 * p_bc_ef
+        res[a, d] += val * 2.0 * (rbe * rcf - rce * rbf)
         res[b, d] += val * 2.0 * (rce * raf - rae * rcf)
         res[c, d] += val * 2.0 * (rae * rbf - rbe * raf)
         
         # res[?, e]
-        p_bc_fd = rbf * rcd - rcf * rbd
-        res[a, e] += val * 2.0 * p_bc_fd
+        res[a, e] += val * 2.0 * (rbf * rcd - rcf * rbd)
         res[b, e] += val * 2.0 * (rcf * rad - raf * rcd)
         res[c, e] += val * 2.0 * (raf * rbd - rbf * rad)
         
         # res[?, f]
-        p_bc_de = rbe * rcd - rce * rbd
         res[a, f] += val * 2.0 * (rbd * rce - rcd * rbe)
         res[b, f] += val * 2.0 * (rce * raf - rae * rcf)
         res[c, f] += val * 2.0 * (rad * rbe - rbd * rae)
