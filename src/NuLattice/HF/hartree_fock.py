@@ -78,7 +78,7 @@ def contract_2nf(v2,dens):
     :return:     one-body operator of the same shape as the density matrix dens
     :rtype:      numpy.array((:,:), dtype=float)
     """
-    return _contract_2nf_np(v2, dens)
+    return _contract_2nf_original(v2, dens)
 
 def _contract_2nf_original(v2, dens):
     res = np.zeros_like(dens)
