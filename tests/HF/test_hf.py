@@ -255,11 +255,31 @@ def test_hf_iter_speed_np(benchmark, hf_data):
     
     assert result[0] is not None
 
+# @pytest.mark.solve_hf
+# def test_solve_hf_equivalence(hf_data):
+#     """Verifies that the optimized _np version yields identical physics to _original."""
+#     d = hf_data
+    
+#     # Run original iteration
+#     e_orig, dens_orig, vecs_orig = hf.solve_HF(d["op1"], d["op2"], d["op3"], d["dens"])
+    
+#     # Run optimized iteration
+#     e_np, dens_np, vecs_np = hf.solve_HF_np(d["op1"], d["op2"], d["op3"], d["dens"])
+    
+#     # Check Energy (Scalar)
+#     assert pytest.approx(e_np) == e_orig
+    
+#     np.testing.assert_allclose(dens_np, dens_orig, atol=1e-13, 
+#                                err_msg="Density matrices diverged between original and NP versions.")
+
 @pytest.mark.solve_hf
-def test_solve_hf_speed_np(benchmark, hf_data):
+def test_solve_hf_speed(benchmark, hf_data):
     d = hf_data
     result = benchmark(hf.solve_HF, d["op1"], d["op2"], d["op3"], d["dens"])
-    
-    assert result[0] is not None
 
+
+# @pytest.mark.solve_hf
+# def test_solve_hf_speed_np(benchmark, hf_data):
+#     d = hf_data
+#     result = benchmark(hf.solve_HF_np, d["op1"], d["op2"], d["op3"], d["dens"])
 

@@ -360,7 +360,7 @@ def solve_HF(op1, op2, op3, dens, mix=0.5, eps=1.e-8, max_iter=100, verbose=Fals
     """
     converged = False
     my_dens=dens.copy()
-    erg0 = HF_energy(op1, op2, op3, my_dens)
+    erg0 = 0
     for i in range(max_iter):
         erg, new_dens, vecs = HF_iter(op1, op2, op3, my_dens, mix)
         diff = np.abs(erg-erg0)
