@@ -8,6 +8,7 @@ __license__   = "BSD-3-Clause"
 __date__      = "2025-07-26"
 
 import numpy as np
+from functools import wraps
 
 try:
     from numba import njit
@@ -20,6 +21,23 @@ except ImportError:
 
 from opt_einsum import contract
 
+def _cache_v2_matrix(func):
+    """
+    Custom decorator to cache the prepared v2 matrix 
+    based on the memory address of the v2 interaction list.
+    """
+    cache = {}
+
+    @wraps(func)
+    def wrapper(v2, dens):
+        v2_id = id(v2)
+        # NOTE(vivek): Assumes the interaction is constant during the HF flow
+        if v2_id not in cache:
+            cache[v2_id] = _prepare_v2_matrix(v2, dens.shape[0])
+        return func(cache[v2_id], dens)
+    
+    return wrapper
+
 def get_1body_matrix(myTkin, nstat: int) -> np.ndarray:
     """
     takes the list of one-body matrix elements and turns it into a square matrix
@@ -31,7 +49,7 @@ def get_1body_matrix(myTkin, nstat: int) -> np.ndarray:
     :return:       nstat x nstat matrix of the list of matrix elements
     :rtype:        numpy.array((:,:), dtype=float)
     """
-    return _get_1body_matrix_original(myTkin, nstat)
+    return _get_1body_matrix_np(myTkin, nstat)
 
 def _get_1body_matrix_original(myTkin, nstat):
     op1 = np.zeros((nstat,nstat))
@@ -60,6 +78,9 @@ def contract_2nf(v2,dens):
     :return:     one-body operator of the same shape as the density matrix dens
     :rtype:      numpy.array((:,:), dtype=float)
     """
+    return _contract_2nf_np(v2, dens)
+
+def _contract_2nf_original(v2, dens):
     res = np.zeros_like(dens)
     for mat_ele in v2:
         [a, b, c, d, val] = mat_ele
@@ -70,6 +91,27 @@ def contract_2nf(v2,dens):
         res[b,d] += val*dens[a,c] #P(ab)P(cd) 
     return res
 
+
+def _prepare_v2_matrix(v2, nstat):
+    """Bakes antisymmetry into a 2D matrix (N^2, N^2)."""
+    V = np.zeros((nstat, nstat, nstat, nstat))
+    for a, b, c, d, val in v2:
+        V[a, b, c, d] += val
+        V[b, a, c, d] -= val
+        V[a, b, d, c] -= val
+        V[b, a, d, c] += val
+    return V.transpose(0, 2, 1, 3).reshape(nstat**2, nstat**2)
+
+@_cache_v2_matrix
+def _contract_2nf_np(v2_matrix, dens):
+    """
+    Perform the O(N^3) contraction.
+    Note: The decorator passes the cached MATRIX here, not the list!
+    """
+    dim = dens.shape[0]
+    # (N^2, N^2) @ (N^2, 1)
+    res_flat = v2_matrix @ dens.ravel()
+    return res_flat.reshape(dim, dim)
 
 def contract_3nf(w3, dens):
     """

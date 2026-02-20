@@ -103,7 +103,15 @@ def test_contract_2nf_equivalence(hf_1nf_2nf_setup):
     setup = hf_1nf_2nf_setup
     
     res_orig = hf._contract_2nf_original(setup["v2"], setup["dens"])
-    res_opt = hf._contract_2nf_optimized(setup["v2"], setup["dens"])
+    res_opt = hf._contract_2nf_fastest(setup["v2"], setup["dens"])
     
     assert_allclose(res_opt, res_orig, atol=1e-15, 
                     err_msg="2NF contraction mismatch! Check antisymmetry sign conventions.")
+
+@pytest.mark.contract_2nf
+def test_contract_2nf_benchmark_original(benchmark, hf_1nf_2nf_setup):
+    benchmark(hf._contract_2nf_original, hf_1nf_2nf_setup["v2"], hf_1nf_2nf_setup["dens"])
+
+@pytest.mark.contract_2nf
+def test_contract_2nf_benchmark_np(benchmark, hf_1nf_2nf_setup):
+    benchmark(hf._contract_2nf_fastest, hf_1nf_2nf_setup["v2"], hf_1nf_2nf_setup["dens"])
