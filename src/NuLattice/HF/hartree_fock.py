@@ -20,7 +20,7 @@ except ImportError:
 
 from opt_einsum import contract
 
-def get_1body_matrix(myTkin,nstat):
+def get_1body_matrix(myTkin, nstat: int) -> np.ndarray:
     """
     takes the list of one-body matrix elements and turns it into a square matrix
     
@@ -31,9 +31,21 @@ def get_1body_matrix(myTkin,nstat):
     :return:       nstat x nstat matrix of the list of matrix elements
     :rtype:        numpy.array((:,:), dtype=float)
     """
+    return _get_1body_matrix_original(myTkin, nstat)
+
+def _get_1body_matrix_original(myTkin, nstat):
     op1 = np.zeros((nstat,nstat))
     for [a, b, val] in myTkin:
         op1[a,b]=val
+    return op1
+
+def _get_1body_matrix_np(myTkin,nstat):
+    op1 = np.zeros((nstat, nstat))
+    arr = np.array(myTkin)
+    indices_a = arr[:, 0].astype(int)
+    indices_b = arr[:, 1].astype(int)
+    values = arr[:, 2]
+    op1[indices_a, indices_b] = values
     return op1
 
 
