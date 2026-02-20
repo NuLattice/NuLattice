@@ -24,4 +24,5 @@ dev = [
     "pytest-benchmark>=4.0.0",
     "ruff>=0.15.1",
     "numba",
+    "matplotlib>=3.7.5",
 ]
