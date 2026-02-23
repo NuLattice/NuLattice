@@ -13,7 +13,7 @@ import numpy as np
 from itertools import combinations
 
 from typing import TypeAlias, Tuple, List
-from NuLattice.constants import hbarc, mass
+from NuLattice.constants import HBARC, MASS
 
 LatticeState : TypeAlias = List[int]
 """
@@ -58,7 +58,7 @@ def phys_unit(a_lat: float) -> float:
     """
     returns the energy unit from basic units
     """
-    return 0.5 * hbarc**2 / (mass * a_lat**2)
+    return 0.5 * HBARC**2 / (MASS * a_lat**2)
 
 
 def _get_sp_basis_original(myL: int, spin: int = 2, isospin: int = 2) -> SingleParticleBasis:
