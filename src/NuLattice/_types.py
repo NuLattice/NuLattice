@@ -54,7 +54,10 @@ class Operator:
         """
         # Enforce contiguous memory layout for C-speed access
         self.indices = np.ascontiguousarray(indices, dtype=np.int64)
-        self.values = np.ascontiguousarray(values, dtype=np.float64)
+        if np.iscomplexobj(values):
+            self.values = np.ascontiguousarray(values, dtype=np.complex128)
+        else:
+            self.values = np.ascontiguousarray(values, dtype=np.float64)
         self.nstat = nstat
         
         # Validation
