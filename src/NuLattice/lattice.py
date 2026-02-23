@@ -11,48 +11,18 @@ __date__ = "2025-07-26"
 import copy
 import numpy as np
 from itertools import combinations
-
-from typing import TypeAlias, Tuple, List
-from NuLattice.constants import HBARC, MASS
-
-LatticeState : TypeAlias = List[int]
-"""
-Represents a single-particle state on the 3D lattice.
-Format: [i, j, k, tz, sz] where i,j,k are spatial and tz,sz are isospin/spin.
-"""
-
-SingleParticleBasis: TypeAlias = List[LatticeState]
-"""
-A list containing all single-particle states in the basis.
-"""
-
-LatticeSite: TypeAlias = List[Tuple[int, int, int]]
-"""
-Represents a spatial coordinate on the 3D lattice.
-Format: (i, j, k)
-"""
-
-LatticeSites: TypeAlias = List[LatticeSite]
-
-OneBodyElement: TypeAlias = Tuple[int, int, float]
-"""
-A single-particle matrix element in sparse format.
-Format: (p, q, value) representing <p|O|q>.
-"""
-
-TwoBodyElement: TypeAlias = Tuple[int, int, int, int, float]
-"""
-A two-body matrix element in sparse format.
-Format: (p, q, r, s, value) representing <pq|V|rs>.
-Typically stored with p < q and r < s.
-"""
-
-ThreeBodyElement: TypeAlias = Tuple[int, int, int, int, int, int, float]
-"""
-A three-body matrix element in sparse format.
-Format: (p, q, r, s, t, u, value) representing <pqr|W|stu>.
-Typically stored with p < q < r and s < t < u.
-"""
+from typing import Tuple
+from NuLattice._constants import (
+    HBARC,
+    MASS,
+    LatticeState,
+    SingleParticleBasis,
+    LatticeSite,
+    LatticeSites,
+    OneBodyElement,
+    TwoBodyElement,
+    ThreeBodyElement,
+)
 
 def phys_unit(a_lat: float) -> float:
     """
