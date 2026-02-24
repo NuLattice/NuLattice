@@ -9,7 +9,6 @@ __license__ = "BSD-3-Clause"
 __date__ = "2025-09-03"
 
 import numpy as np
-from NuLattice.lattice import TwoBodyElement
 
 def create_occupations(basis, ref):
     """
@@ -43,7 +42,7 @@ def expand_h2(h2):
     :return:        Expanded list with all antisymmetrized two-body matrix elements
     :rtype:         list[tuple[int, int, int, int, float]]
     """
-    return _expand_h2_np(h2)
+    return _expand_h2_original(h2)
 
 def _expand_h2_original(h2):
     h2_new = []
@@ -57,21 +56,6 @@ def _expand_h2_original(h2):
             h2_new.append((p, q, r, s, me))
 
     return h2_new
-
-def _expand_h2_np(h2: TwoBodyElement, dim: int = None):
-    h2 = np.array(h2)
-    if dim is None:
-        dim = int(np.max(h2[:, 0:4])) + 1
-
-    gamma = np.zeros((dim, dim, dim, dim))
-    p, q, r, s = h2[:, 0:4].T.astype(int)
-    val = h2[:, 4]
-
-    np.add.at(gamma, (p, q, r, s), val)
-    np.add.at(gamma, (q, p, r, s), -val)
-    np.add.at(gamma, (p, q, s, r), -val)
-    np.add.at(gamma, (q, p, s, r), val)
-    return gamma
 
 def get_three_body_permutations(pp, qq, rr):
     """
@@ -121,37 +105,6 @@ def _expand_h3_original(h3):
                 h3_new.append((p, q, r, s, t, u, factor_pqr * factor_stu * mme))
 
     return h3_new
-
-# NOTE(vivek): slower
-def _expand_h3_np(h3, dim=None):
-    h3_arr = np.array(h3)
-    if dim is None:
-        dim = int(np.max(h3_arr[:, 0:6])) + 1
-        
-    w3 = np.zeros((dim, dim, dim, dim, dim, dim))
-    
-    p_orig, q_orig, r_orig = h3_arr[:, 0], h3_arr[:, 1], h3_arr[:, 2]
-    s_orig, t_orig, u_orig = h3_arr[:, 3], h3_arr[:, 4], h3_arr[:, 5]
-    val = h3_arr[:, 6]
-
-    perms = [
-        (0, 1, 2,  1.0), (2, 0, 1,  1.0), (1, 2, 0,  1.0), # Even
-        (1, 0, 2, -1.0), (0, 2, 1, -1.0), (2, 1, 0, -1.0)  # Odd
-    ]
-
-    idx_pqr = np.array([p_orig, q_orig, r_orig])
-    idx_stu = np.array([s_orig, t_orig, u_orig])
-
-    for p_idx, q_idx, r_idx, p_sign in perms:
-        for s_idx, t_idx, u_idx, s_sign in perms:
-            p, q, r = idx_pqr[p_idx], idx_pqr[q_idx], idx_pqr[r_idx]
-            s, t, u = idx_stu[s_idx], idx_stu[t_idx], idx_stu[u_idx]
-            
-            np.add.at(w3, (p.astype(int), q.astype(int), r.astype(int), 
-                           s.astype(int), t.astype(int), u.astype(int)), 
-                      p_sign * s_sign * val)
-    
-    return w3
 
 def compute_normal_ordered_hamiltonian_no2b(occs, h1, h2, h3=None):
     """
