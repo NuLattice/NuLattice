@@ -127,14 +127,16 @@ class OneBodyOperator(Operator):
     def _get_expected_rank(cls):
         return 2
 
-    def to_dense(self):
-        """Returns the standard N x N matrix representation."""
-        mat = np.zeros((self.nstat, self.nstat))
+    def to_dense(self, n_states:int=None):
+        """Returns the standard N x N matrix representation. If n_states not provided, defaults to self nstates"""
+        if n_states is None:
+            n_states = self.nstat
+
+        mat = np.zeros((n_states, n_states))
         if len(self) > 0:
             p, q = self.indices[:, 0], self.indices[:, 1]
             mat[p, q] = self.values
         return mat
-
 
 class TwoBodyOperator(Operator):
     """
