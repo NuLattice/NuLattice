@@ -190,7 +190,7 @@ def Tkin(
     Wrapper for backward compatibility. Returns list of [i, j, val].
     """
     op = _Tkin(lattice, myL, spin, isospin)
-    return op.to_list()
+    return op
 
 
 def _contacts(
@@ -285,7 +285,7 @@ def contacts(
     Wrapper for backward compatibility. Returns list of [p, q, r, s, val].
     """
     op = _contacts(vT1, vS1, lattice, myL, spin, isospin)
-    return op.to_list()
+    return op
 
 
 def _NNNcontact(
@@ -340,7 +340,7 @@ def NNNcontact(
     Wrapper for backward compatibility. Returns list of [p, q, r, s, t, u, val].
     """
     op = _NNNcontact(v3NF, lattice, myL, spin, isospin)
-    return op.to_list()
+    return op
 
 
 def to_legacy_p(op:OneBodyOperator):
