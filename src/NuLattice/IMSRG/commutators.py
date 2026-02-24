@@ -11,7 +11,6 @@ __date__ = "2025-09-03"
 import opt_einsum
 import numpy as np
 
-
 def antisymmetrize_2b_pq(a2: np.ndarray) -> np.ndarray:
     """
     Antisymmetrizes a two-body operator with respect to the first two indices (pq)
@@ -442,7 +441,10 @@ def evaluate_comm_222(occs, a2, b2):
     """
     return evaluate_comm_222_pphh(occs, a2, b2) + evaluate_comm_222_ph(occs, a2, b2)
 
-
+# NOTE(vivek): this is the only "public" function called by imsrg_rhs in the ode solver. If this is running multiple times,
+# there is a lot of waste here in having to recompute factors, weights, and certain reshapes which trigger garbage collection.
+# On CPU, function calls are effectively negligible compared to the functions themselves, but on GPU, these become 9 kernel calls
+# which is not a fun time
 def evaluate_imsrg2_commutator(occs, a1, a2, b1, b2):
     """
     Evaluates the complete commutator for IMSRG(2) flow equations
@@ -477,5 +479,73 @@ def evaluate_imsrg2_commutator(occs, a1, a2, b1, b2):
         - evaluate_comm_122(occs, b1, a2)
         + evaluate_comm_222(occs, a2, b2)
     )
+
+    return res0, res1, res2
+
+def _evaluate_imsrg_commutator_np(occs, a1, a2, b1, b2):
+
+    dim = len(occs)
+    occsbar = 1 - occs
+    np_nbarq = occs[:, None] * occsbar[None, :]
+    nbarp_nq = occs[None, :] * occsbar[:, None]
+    q_factor = (occsbar[:, None] * occsbar[None, :]) - (occs[:, None] * occs[None, :])
+    ph_factor = (occs[:, None] * occsbar[None, :]) - (occsbar[:, None] * occs[None, :])
+ 
+
+    # [1,1]->0 and [2,2]->0
+    res0 = 0
+    res0 += np.sum(np_nbarq * a1 * b1.T) - np.sum(nbarp_nq * a1 * b1.T)
+    term220 = np.einsum("p,q,r,s,pqrs,rspq", occs, occs, occsbar, occsbar, a2, b2)
+    term220 -= np.einsum("p,q,r,s,pqrs,rspq", occsbar, occsbar, occs, occs, a2, b2)
+    res0 += 0.25 * term220
+
+    res1 = (a1 @ b1) - (b1 @ a1)
+    
+    # [1,2]->1:
+    # We combine (a1*b2 - b1*a2) weighted by ph_weight
+    a1_b2_fused = np.einsum("pq,iqjp->ij", ph_factor * a1, b2)
+    b1_a2_fused = np.einsum("pq,iqjp->ij", ph_factor * b1, a2)
+    res1 += (a1_b2_fused - b1_a2_fused)
+    
+    # [2,2]->1
+    # (nbar_p nbar_q n_r) + (n_p n_q nbar_r)
+    w_221 = (occsbar[None, None, :, None] * occsbar[None, None, None, :] * occs[None, :, None, None]) + \
+            (occs[None, None, :, None] * occs[None, None, None, :] * occsbar[None, :, None, None])
+    
+    a2_w = (a2 * w_221).reshape(dim, -1)
+    b2_w = (b2 * w_221).reshape(dim, -1)
+    # rpqj -> transpose(3, 0, 1, 2)
+    a2_tr = a2.transpose(3, 0, 1, 2).reshape(-1, dim)
+    b2_tr = b2.transpose(3, 0, 1, 2).reshape(-1, dim)
+    
+    res1 += 0.5 * (a2_w @ b2_tr - b2_w @ a2_tr)
+
+    diff122 = (a1 @ b2.reshape(dim, -1)).reshape(dim, dim, dim, dim)
+    diff122 -= (np.einsum("pk,ijpl->ijkl", a1, b2)) # Standard scaling
+    diff122 -= (b1 @ a2.reshape(dim, -1)).reshape(dim, dim, dim, dim)
+    diff122 += (np.einsum("pk,ijpl->ijkl", b1, a2))
+    
+    # Single antisymmetrization call for all 122 terms
+    _a2 = 2.0 * diff122
+    _2b_pq = 0.5 * (_a2 - np.swapaxes(_a2, 0, 1))
+    res2 = 0.5 * (_2b_pq - np.swapaxes(_2b_pq, 2, 3))
+
+    # [2,2]->2 pphh
+    a2_mat = a2.reshape(dim**2, dim**2)
+    b2_mat = b2.reshape(dim**2, dim**2)
+    a2_q = (a2 * q_factor[None, None, :, :]).reshape(dim**2, dim**2)
+    b2_q = (b2 * q_factor[None, None, :, :]).reshape(dim**2, dim**2)
+    
+    res2 += 0.5 * (a2_q @ b2_mat - b2_q @ a2_mat).reshape(dim, dim, dim, dim)
+
+    # [2,2]->2 ph: GEMM Optimized
+    # Align to (j,k,p,q) and (p,q,i,l) for matmul
+    a2_ph = (a2 * ph_factor[:, None, None, :]).transpose(1, 2, 0, 3).reshape(dim**2, dim**2)
+    b2_ph_tr = b2.transpose(2, 1, 0, 3).reshape(dim**2, dim**2)
+    
+    c_ph = (a2_ph @ b2_ph_tr).reshape(dim, dim, dim, dim).transpose(2, 0, 1, 3)
+    _a2 = -4.0 * c_ph
+    _2b_pq = 0.5 * (_a2 - np.swapaxes(_a2, 0, 1))
+    res2 += 0.5 * (_2b_pq - np.swapaxes(_2b_pq, 2, 3))
 
     return res0, res1, res2
