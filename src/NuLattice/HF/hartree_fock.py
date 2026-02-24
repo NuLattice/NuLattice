@@ -8,9 +8,37 @@ __license__   = "BSD-3-Clause"
 __date__      = "2025-07-26"
 
 import numpy as np
+from functools import wraps
+
+try:
+    from numba import njit
+except ImportError:
+    print("Warning: Numba not detected. Some functions may run slower")
+    def njit(func=None, **kwargs):
+        if func is None:
+            return lambda f: f
+        return func
+
 from opt_einsum import contract
 
-def get_1body_matrix(myTkin,nstat):
+def _cache_v2_matrix(func):
+    """
+    Custom decorator to cache the prepared v2 matrix 
+    based on the memory address of the v2 interaction list.
+    """
+    cache = {}
+
+    @wraps(func)
+    def wrapper(v2, dens):
+        v2_id = id(v2)
+        # NOTE(vivek): Assumes the interaction is constant during the HF flow
+        if v2_id not in cache:
+            cache[v2_id] = _prepare_v2_matrix(v2, dens.shape[0])
+        return func(cache[v2_id], dens)
+    
+    return wrapper
+
+def get_1body_matrix(myTkin, nstat: int) -> np.ndarray:
     """
     takes the list of one-body matrix elements and turns it into a square matrix
     
@@ -21,9 +49,21 @@ def get_1body_matrix(myTkin,nstat):
     :return:       nstat x nstat matrix of the list of matrix elements
     :rtype:        numpy.array((:,:), dtype=float)
     """
+    return _get_1body_matrix_np(myTkin, nstat)
+
+def _get_1body_matrix_original(myTkin, nstat):
     op1 = np.zeros((nstat,nstat))
     for [a, b, val] in myTkin:
         op1[a,b]=val
+    return op1
+
+def _get_1body_matrix_np(myTkin,nstat):
+    op1 = np.zeros((nstat, nstat))
+    arr = np.array(myTkin)
+    indices_a = arr[:, 0].astype(int)
+    indices_b = arr[:, 1].astype(int)
+    values = arr[:, 2]
+    op1[indices_a, indices_b] = values
     return op1
 
 
@@ -38,6 +78,9 @@ def contract_2nf(v2,dens):
     :return:     one-body operator of the same shape as the density matrix dens
     :rtype:      numpy.array((:,:), dtype=float)
     """
+    return _contract_2nf_original(v2, dens)
+
+def _contract_2nf_original(v2, dens):
     res = np.zeros_like(dens)
     for mat_ele in v2:
         [a, b, c, d, val] = mat_ele
@@ -49,7 +92,28 @@ def contract_2nf(v2,dens):
     return res
 
 
-def contract_3nf(w3,dens):
+def _prepare_v2_matrix(v2, nstat):
+    """Bakes antisymmetry into a 2D matrix (N^2, N^2)."""
+    V = np.zeros((nstat, nstat, nstat, nstat))
+    for a, b, c, d, val in v2:
+        V[a, b, c, d] += val
+        V[b, a, c, d] -= val
+        V[a, b, d, c] -= val
+        V[b, a, d, c] += val
+    return V.transpose(0, 2, 1, 3).reshape(nstat**2, nstat**2)
+
+@_cache_v2_matrix
+def _contract_2nf_np(v2_matrix, dens):
+    """
+    Perform the O(N^3) contraction.
+    Note: The decorator passes the cached MATRIX here, not the list!
+    """
+    dim = dens.shape[0]
+    # (N^2, N^2) @ (N^2, 1)
+    res_flat = v2_matrix @ dens.ravel()
+    return res_flat.reshape(dim, dim)
+
+def contract_3nf(w3, dens):
     """
     takes list of three-body matrix elements and contracts them with the density to get a one-body operator
 
@@ -60,6 +124,9 @@ def contract_3nf(w3,dens):
     :return:     one-body operator of the same shape as the density matrix dens
     :rtype:      numpy.array((:,:), dtype=float)
     """
+    return _contract_3nf_np(w3, dens)
+
+def _contract_3nf_original(w3,dens):
     res = np.zeros_like(dens)
     for mat_ele in w3:  # we need all 36 antisymmetric combinations of the ket (abc) and bra (def) single-particle states
         [a, b, c, d, e, f, val] = mat_ele
@@ -101,6 +168,49 @@ def contract_3nf(w3,dens):
                          +dens[b,e]*dens[a,d] )
     return res
 
+@njit
+def _contract_3nf_kernel(w3_indices, w3_vals, dens):
+    nstat = dens.shape[0]
+    res = np.zeros((nstat, nstat))
+    
+    for i in range(len(w3_vals)):
+        a, b, c, d, e, f = w3_indices[i]
+        val = w3_vals[i]
+        
+        rbe = dens[b, e]
+        rcf = dens[c, f]
+        rce = dens[c, e]
+        rbf = dens[b, f]
+        
+        rae = dens[a, e]
+        raf = dens[a, f]
+        
+        rbd = dens[b, d]
+        rcd = dens[c, d]
+        rad = dens[a, d]
+        
+        # res[?, d]
+        res[a, d] += val * 2.0 * (rbe * rcf - rce * rbf)
+        res[b, d] += val * 2.0 * (rce * raf - rae * rcf)
+        res[c, d] += val * 2.0 * (rae * rbf - rbe * raf)
+        
+        # res[?, e]
+        res[a, e] += val * 2.0 * (rbf * rcd - rcf * rbd)
+        res[b, e] += val * 2.0 * (rcf * rad - raf * rcd)
+        res[c, e] += val * 2.0 * (raf * rbd - rbf * rad)
+        
+        # res[?, f]
+        res[a, f] += val * 2.0 * (rbd * rce - rcd * rbe)
+        res[b, f] += val * 2.0 * (rce * raf - rae * rcf)
+        res[c, f] += val * 2.0 * (rad * rbe - rbd * rae)
+        
+    return res
+
+def _contract_3nf_np(w3, dens):
+    w3_arr = np.array(w3)
+    w3_indices = w3_arr[:, :6].astype(np.int32)
+    w3_vals = w3_arr[:, 6]
+    return _contract_3nf_kernel(w3_indices, w3_vals, dens)
 
 def make_HF_ham(op1,op2,op3,dens):
     """
@@ -140,6 +250,11 @@ def init_density(nstat,hole):
         dens[i,i] = 1.0
     return dens
 
+# def _init_density_np(nstat, hole):
+#     dens = np.zeros((nstat,nstat))
+#     dens[list(hole), list(hole)] = 1.0
+#     return dens
+
 
 def HF_energy(op1, op2, op3, dens):
     """
@@ -161,9 +276,8 @@ def HF_energy(op1, op2, op3, dens):
     dum = get_1body_matrix(op1,nstat)
     dum += 0.5*contract_2nf(op2,dens)
     dum += (1.0/6.0)*contract_3nf(op3,dens)
-    erg = contract("ij,ji",dum,dens)
+    erg = np.sum(dum * dens.T)
     return erg
-
 
 def HF_iter(op1, op2, op3, dens, mix=0.5):
     """
@@ -184,6 +298,9 @@ def HF_iter(op1, op2, op3, dens, mix=0.5):
                  the HF Hamiltonian
     :rtype:      float, numpy.array((:,:), dtype=float), numpy.array((:,:), dtype=float)
     """
+    return _HF_iter_np(op1, op2, op3, dens, mix=0.5)
+
+def _HF_iter_original(op1, op2, op3, dens, mix=0.5):
     npart=round(np.trace(dens)) # rounds to nearest integer
     erg = HF_energy(op1, op2, op3, dens)
     hf = make_HF_ham(op1, op2, op3, dens)
@@ -191,6 +308,33 @@ def HF_iter(op1, op2, op3, dens, mix=0.5):
     new_dens=contract("pi,qi->pq", vecs[:,0:npart], vecs[:,0:npart])
     res_dens = mix*new_dens + (1.0-mix)*dens
     return erg, res_dens, vecs
+
+def _HF_iter_np(op1, op2, op3, dens, mix=0.5):
+    npart = int(round(np.trace(dens)))
+    
+    nstat = dens.shape[0]
+    h1 = get_1body_matrix(op1, nstat)
+    gamma = contract_2nf(op2, dens)
+    omega = contract_3nf(op3, dens)
+    
+    e_op = h1 + 0.5 * gamma + (1.0/6.0) * omega
+    erg = np.dot(e_op.ravel(), dens.T.ravel())
+    
+    hf_ham = h1 + gamma + 0.5 * omega
+    
+    vals, vecs = np.linalg.eigh(hf_ham)
+    
+    # 'pi,qi->pq' einsum
+    occ = vecs[:, :npart]
+    new_dens = occ @ occ.T
+    
+    if mix != 1.0:
+        res_dens = mix * new_dens + (1.0 - mix) * dens
+    else:
+        res_dens = new_dens
+        
+    return erg, res_dens, vecs
+
 
 def solve_HF(op1, op2, op3, dens, mix=0.5, eps=1.e-8, max_iter=100, verbose=False):
     """
@@ -216,7 +360,7 @@ def solve_HF(op1, op2, op3, dens, mix=0.5, eps=1.e-8, max_iter=100, verbose=Fals
     """
     converged = False
     my_dens=dens.copy()
-    erg0 = HF_energy(op1, op2, op3, my_dens)
+    erg0 = 0
     for i in range(max_iter):
         erg, new_dens, vecs = HF_iter(op1, op2, op3, my_dens, mix)
         diff = np.abs(erg-erg0)
