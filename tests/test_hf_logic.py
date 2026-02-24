@@ -5,7 +5,7 @@ import NuLattice.references as ref
 @pytest.fixture
 def hf_setup():
     """Pre-calculates operators so the benchmark focuses on the HF solver logic."""
-    thisL = 7
+    thisL = 6
     a_lat = 2.5
     phys_unit = lat.phys_unit(a_lat)
     
