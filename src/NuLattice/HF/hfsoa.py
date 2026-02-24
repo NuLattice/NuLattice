@@ -227,7 +227,7 @@ def _HF_iter(
     return erg, res_dens, vecs
 
 
-def solve_HF_ref(
+def solve_HF(
     op1: OneBodyOperator,
     op2: TwoBodyOperator,
     op3: ThreeBodyOperator,
@@ -276,44 +276,4 @@ def solve_HF_ref(
             
         erg0 = erg
         
-    return erg, vecs, converged
-
-def solve_HF(
-    op1: OneBodyOperator,
-    op2: TwoBodyOperator,
-    op3: ThreeBodyOperator,
-    dens: np.ndarray,
-    mix: float = 0.5,
-    eps: float = 1.0e-8,
-    max_iter: int = 100,
-    verbose: bool = False,
-):
-    """
-    Solve the Hartree-Fock problem
-
-    :param op1:  list of one-body matrix elements OR OneBodyOperator
-    :param op2:  list of two-body matrix elements OR TwoBodyOperator
-    :param op3:  list of three-body matrix elements OR ThreeBodyOperator
-    :param dens: density matrix (same shape as op1)
-    :param mix:  parameter used in the mixing: mix*new_density + (1-mix)*old_density
-    :param eps:  converegence of energy
-    :param max_iter:  maximum number of HF iterations
-    :return:     energy, orthogonal transformation matrix, converged bool
-    """
-    converged = False
-    my_dens = dens.copy()
-    erg0 = 0
-    h1 = op1.to_dense()
-    for i in range(max_iter):
-        erg, new_dens, vecs = _HF_iter(h1, op2, op3, my_dens, mix)
-        diff = np.abs(erg - erg0)
-        diff_dens = np.sum(np.abs(new_dens - my_dens))
-        if verbose:
-            print(i, "E=", erg, ", Delta E=", diff, ", Delta rho =", diff_dens)
-        if diff_dens < eps and i > 1:
-            converged = True
-            break
-        else:
-            erg0 = erg
-            my_dens = new_dens
     return erg, vecs, converged
