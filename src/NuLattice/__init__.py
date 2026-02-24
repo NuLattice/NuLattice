@@ -1,14 +1,12 @@
-# from ._constants import (
-#     HBARC,
-#     MASS,
-# )
-
-from . import lattice_soa as lattice
+import sys
+from . import lattice_soa
 from ._types import (
     OneBodyOperator,
     TwoBodyOperator,
     ThreeBodyOperator,
 )
-__all__ = ["OneBodyOperator", "TwoBodyOperator", "ThreeBodyOperator", "lattice"]
+
+sys.modules["NuLattice.lattice"] = lattice_soa
+__all__ = ["OneBodyOperator", "TwoBodyOperator", "ThreeBodyOperator"]
 
 
