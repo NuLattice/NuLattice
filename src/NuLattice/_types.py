@@ -135,7 +135,8 @@ class OneBodyOperator(Operator):
         mat = np.zeros((n_states, n_states))
         if len(self) > 0:
             p, q = self.indices[:, 0], self.indices[:, 1]
-            mat[p, q] = self.values
+            np.add.at(mat, (p, q), self.values)
+
         return mat
 
 class TwoBodyOperator(Operator):
