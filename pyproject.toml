@@ -25,4 +25,6 @@ dev = [
     "ruff>=0.15.1",
     "numba",
     "matplotlib>=3.7.5",
+    "pytest-memray>=1.8.0",
+    "torch>=2.0.0", # this does require torch.compile
 ]
