@@ -26,13 +26,13 @@ def test_antisymmetry_equivalence(imsrg_setup, func_base):
     
     assert_allclose(np_func(a2), orig_func(a2), atol=1e-15)
 
-@pytest.mark.a2
+@pytest.mark.benchmark(group="a2")
 def test_antisymmetry_einsum(benchmark, imsrg_setup):
     a2 = imsrg_setup["a2"]
     def f(x):
         return comm._antisymmetrize_2b_rs_original(comm._antisymmetrize_2b_pq_original(x))
     benchmark(f, a2)
-@pytest.mark.a2
+@pytest.mark.benchmark(group="a2")
 def test_antisymmetry_swapaxes(benchmark, imsrg_setup):
     a2 = imsrg_setup["a2"]
     def f(x):
@@ -47,12 +47,12 @@ def test_comm_221_equivalence(imsrg_setup):
     
     assert_allclose(res_np, res_orig, atol=1e-15)
 
-@pytest.mark.comm_221
+@pytest.mark.benchmark(group="comm_221")
 def test_comm_221_einsum(benchmark, imsrg_setup):
     setup = imsrg_setup
     benchmark(comm._evaluate_comm_221_original, setup["occs"], setup["a2"], setup["b2"])
 
-@pytest.mark.comm_221
+@pytest.mark.benchmark(group="comm_221")
 def test_comm_221_np(benchmark, imsrg_setup):
     setup = imsrg_setup
     benchmark(comm._evaluate_comm_221_np, setup["occs"], setup["a2"], setup["b2"])
@@ -65,12 +65,12 @@ def test_comm_222_pphh_equivalence(imsrg_setup):
     
     assert_allclose(res_np, res_orig, atol=1e-15)
 
-@pytest.mark.comm_222_pphh
+@pytest.mark.benchmark(group="comm_222_pphh")
 def test_comm_222_pphh_original(benchmark, imsrg_setup):
     setup = imsrg_setup
     benchmark(comm._evaluate_comm_222_pphh_original, setup["occs"], setup["a2"], setup["b2"])
 
-@pytest.mark.comm_222_pphh
+@pytest.mark.benchmark(group="comm_222_pphh")
 def test_comm_222_pphh_np(benchmark, imsrg_setup):
     setup = imsrg_setup
     benchmark(comm._evaluate_comm_222_pphh_np, setup["occs"], setup["a2"], setup["b2"])
@@ -83,13 +83,13 @@ def test_comm_222_ph_equivalence(imsrg_setup):
     
     assert_allclose(res_np, res_orig, atol=1e-15)
 
-@pytest.mark.comm_222
+@pytest.mark.benchmark(group="comm_222")
 def test_comm_222_original(benchmark, imsrg_setup):
     """Benchmarks the peak throughput of the reshaped matmul implementation."""
     setup = imsrg_setup
     benchmark(lambda: comm._evaluate_comm_222_pphh_original(setup["occs"], setup["a2"], setup["b2"]) +  comm._evaluate_comm_222_ph_original(setup["occs"], setup["a2"], setup["b2"]) )
 
-@pytest.mark.comm_222
+@pytest.mark.benchmark(group="comm_222")
 def test_comm_222_np(benchmark, imsrg_setup):
     """Benchmarks the peak throughput of the reshaped matmul implementation."""
     setup = imsrg_setup

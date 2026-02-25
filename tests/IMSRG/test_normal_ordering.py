@@ -32,7 +32,7 @@ def no_setup():
         "h3": h3
     }
 
-@pytest.mark.expand_h2
+@pytest.mark.benchmark(group="expand_h2")
 def test_expand_h2_equivalence(no_setup):
     """Verifies vectorized tensor population matches the manual list expansion."""
     setup = no_setup
@@ -46,17 +46,17 @@ def test_expand_h2_equivalence(no_setup):
     
     assert_allclose(res_np_tensor, res_orig_tensor, atol=1e-15)
 
-@pytest.mark.expand_h2
+@pytest.mark.benchmark(group="expand_h2")
 def test_expand_h2_original(benchmark, no_setup):
     setup = no_setup
     benchmark(no._expand_h2_original, setup["h2"])
 
-@pytest.mark.expand_h2
+@pytest.mark.benchmark(group="expand_h2")
 def test_expand_h2_np(benchmark, no_setup):
     setup = no_setup
     benchmark(no._expand_h2_np, setup["h2"])
 
-@pytest.mark.expand_h3
+@pytest.mark.benchmark(group="expand_h3")
 def test_expand_h3_equivalence(no_setup):
     """Verifies vectorized tensor population matches the manual list expansion."""
     setup = no_setup
@@ -71,12 +71,12 @@ def test_expand_h3_equivalence(no_setup):
     
     assert_allclose(res_np_tensor, res_orig_tensor, atol=1e-15)
 
-@pytest.mark.expand_h3
+@pytest.mark.benchmark(group="expand_h3")
 def test_expand_h3_original(benchmark, no_setup):
     setup = no_setup
     benchmark(no._expand_h3_original, setup["h3"])
 
-@pytest.mark.expand_h3
+@pytest.mark.benchmark(group="expand_h3")
 def test_expand_h3_np(benchmark, no_setup):
     setup = no_setup
     benchmark(no._expand_h3_np, setup["h3"])
