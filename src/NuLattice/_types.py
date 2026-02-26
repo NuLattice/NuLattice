@@ -220,8 +220,6 @@ class TwoBodyOperator(Operator):
         shape = (n, n, n, n)
 
         if self.is_torch:
-            import torch
-
             mat = torch.zeros(shape, dtype=self.values.dtype, device=self.device)
             if len(self) > 0:
                 # Project (N, 4) indices into coordinate tuples for index_put_
@@ -234,8 +232,6 @@ class TwoBodyOperator(Operator):
                 mat.index_put_(idx_tuple, self.values, accumulate=True)
             return mat
         else:
-            import numpy as np
-
             mat = np.zeros(shape, dtype=self.values.dtype)
             if len(self) > 0:
                 # Use np.add.at for unbuffered accumulation (handles duplicate indices)
