@@ -315,31 +315,42 @@ def get_3NF_tbme(w_pph_pph, w_pph_phh, w_pph_hhh, w_phh_phh, w_phh_hhh, w_hhh_hh
     v_phhh = np.zeros((pnum, hnum, hnum, hnum))
     v_hhhh = np.zeros((hnum, hnum, hnum, hnum)) 
     
+    # Initialize "sparse" blocks as 0-length arrays with correct column width
     if sparse_pppp:
-        v_pppp = []
+        v_pppp = np.empty((0, 5))
     else:
         v_pppp = np.zeros((pnum, pnum, pnum, pnum))
         
     if sparse_ppph:
-        v_ppph = []
+        v_ppph = np.empty((0, 5))
     else:
         v_ppph = np.zeros((pnum, pnum, pnum, hnum))
                 
+    # Use temporary lists for efficient appending before conversion
+    v_pppp_list = []
+    v_ppph_list = []
+
     for ele in w_pph_pph:
         [a, b, i, c, d, j, val] = ele
         if i == j:
             if sparse_pppp:
-                v_pppp.append([a, b, c, d, val])
+                v_pppp_list.append([a, b, c, d, val])
             else:
                 v_pppp[a, b, c, d] += val
        
     for ele in w_pph_phh:
         [a, b, i, c, k, j, val] = ele
         if i == j:
-            if sparse_pppp:
-                v_ppph.append([a, b, c, k, val])
+            if sparse_ppph:
+                v_ppph_list.append([a, b, c, k, val])
             else:
                 v_ppph[a, b, c, k] += val
+
+    # Convert lists to arrays if sparse was selected
+    if sparse_pppp and v_pppp_list:
+        v_pppp = np.array(v_pppp_list)
+    if sparse_ppph and v_ppph_list:
+        v_ppph = np.array(v_ppph_list)
 
     for ele in w_pph_hhh:
         [a, b, i, m, k, j, val] = ele
