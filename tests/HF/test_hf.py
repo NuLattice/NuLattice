@@ -206,7 +206,7 @@ def test_hf_energy_equivalence(hf_data):
     """Verifies that the optimized _np version yields identical physics to _original."""
     d = hf_data
     erg_orig = hf.HF_energy(d["op1"], d["op2"], d["op3"], d["dens"])
-    # erg_np = hf.HF_energy_np(d["op1"], d["op2"], d["op3"], d["dens"])
+    erg_np = hf.HF_energy_np(d["op1"], d["op2"], d["op3"], d["dens"])
     assert pytest.approx(erg_np) == erg_orig
    
 

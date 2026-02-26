@@ -52,7 +52,7 @@ class TestOneBodyEquivalence:
         t_soa = soa.Tkin(lattice_sites_aos, **lattice_params)
         
         # 3. Compare
-        compare_lists_approx(t_aos, t_soa)
+        compare_lists_approx(t_aos, t_soa.to_list())
 
     @pytest.mark.parametrize("axis", ["x", "y", "z"])
     def test_momentum_operators(self, lattice_params, axis):
