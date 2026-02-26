@@ -11,7 +11,8 @@ __date__      = "2025-09-03"
 import numpy as np
 from opt_einsum import contract
 from copy import deepcopy
-import sys, pathlib
+import sys
+import pathlib
 sys.path.append(str(pathlib.Path(__file__).parent / ".." / ".."))
 import NuLattice.CCM.three_body_utils as tbu
 import NuLattice.lattice as lat
@@ -58,7 +59,7 @@ def get_fock_matrices(part,hole,myTkin,v_phph,v_phhh,v_hhhh):
             kb=part[b]
             labels=(ka,kb)
             val = lookup1b.get( labels )
-            if val == None:
+            if val is None:
                 continue
             else:
                 f_pp[a,b] = val
@@ -72,7 +73,7 @@ def get_fock_matrices(part,hole,myTkin,v_phph,v_phhh,v_hhhh):
             kb=hole[b]
             labels=(ka,kb)
             val = lookup1b.get( labels )
-            if val == None:
+            if val is None:
                 continue
             else:
                 f_ph[a,b] = val
@@ -86,7 +87,7 @@ def get_fock_matrices(part,hole,myTkin,v_phph,v_phhh,v_hhhh):
             kb=hole[b]
             labels=(ka,kb)
             val = lookup1b.get( labels )
-            if val == None:
+            if val is None:
                 continue
             else:
                 f_hh[a,b] = val
@@ -193,7 +194,6 @@ def get_all_interactions(part,hole,mycontact, sparse = False):
             a = lookup_p.get(i2)
             ket = ("p","h")
         
-        ket_indx=(a,b)
     
         if bra == ("p","p"):
             sign_bra = 1.0
@@ -213,7 +213,6 @@ def get_all_interactions(part,hole,mycontact, sparse = False):
             c = lookup_p.get(i4)
             bra = ("p","h")
     
-        bra_indx=(c,d)
     
     
         # in what follows, vint is used as a pointer, i.e. as a view of a numpy array
@@ -310,7 +309,7 @@ def get_ref_energy(no_1b_hh, no_2b_hhhh, w_hhh_hhh=None):
         for j in range(hnum):
             en -= 0.5 * no_2b_hhhh[(i,j,i,j)]
 
-    if w_hhh_hhh != None:
+    if w_hhh_hhh is not None:
         for ele in w_hhh_hhh:
             [m, i, j, n, k, l, val] = ele
             if (m, i, j) == (n, k, l):
@@ -378,7 +377,6 @@ def t1Iter(t1, t2, f_ph, f_pp, f_hh, v_phph, v_phhh, v_pphh,
              + dgrams.dgram_cdkl_ck_dali(v_pphh, t1, t2)
             )
     
-
     # #Calculating X_hh and X_pp, where they are the factorization 
     # #note, I really calculate -X_i^i here
     pnum = len(f_pp)
@@ -399,7 +397,7 @@ def t1Iter(t1, t2, f_ph, f_pp, f_hh, v_phph, v_phhh, v_pphh,
     X_pp += dgrams.dgram_dckl_dakl(v_pphh, t2)
     X_hh += dgrams.dgram_cdlk_cl_di(v_pphh, t1)
     X_pp += dgrams.dgram_cdkl_dk_al(v_pphh, t1)
-    
+   
     if sparse:
         H1 += v_ppph_results[0]
         X_pp += v_ppph_results[1]
@@ -413,8 +411,7 @@ def t1Iter(t1, t2, f_ph, f_pp, f_hh, v_phph, v_phhh, v_pphh,
     diag_h = np.diag(X_hh)
     diag_p = np.diag(X_pp)
     denom = - np.add.outer(diag_p, diag_h)
-    t1 += H1 / denom
-    return t1
+    return t1 + (H1 / denom)
 
 def t2Init(f_pp, f_hh, v_pphh, delta):
     """
@@ -497,7 +494,7 @@ def t2Iter(t1, t2, f_ph, f_hh, f_pp, v_pppp, v_phph, v_phhh, v_pphh,
     H2 += dgrams.dgram_cdkl_ak_bl_cdij(v_pphh, t1, t2) 
     H2 += dgrams.dgram_cdkl_ci_bl_adkj(v_pphh, t1, t2) 
     H2 += dgrams.dgram_cdkl_ci_ak_dj_bl(v_pphh, t1)
-    
+
     pnum = len(f_pp)
     hnum = len(f_hh)
 
@@ -544,9 +541,8 @@ def t2Iter(t1, t2, f_ph, f_hh, f_pp, v_pppp, v_phph, v_phhh, v_pphh,
     denom_hh = np.add.outer(diag_h, diag_h)
     denom_pp = np.add.outer(diag_p, diag_p)
     denom = - np.add.outer(denom_pp, denom_hh)
-    t2 += H2 / denom
     
-    return t2
+    return t2 + (H2 / denom)
 
 def ccsd_solver(fock_mats, two_body_int, t1initial=None, eps = 1e-8, maxSteps = 1000, max_diis = 10, 
                 delta = 0, mixing = 0.5, verbose = False, sparse = True, ccs = False): 
@@ -636,13 +632,13 @@ def ccsd_solver(fock_mats, two_body_int, t1initial=None, eps = 1e-8, maxSteps = 
             return energy, t1, t2
         
         # Handle convergence acceleration via DIIS
-        diis_vals_t1.append(deepcopy(t1))
-        diis_vals_t2.append(deepcopy(t2))
-
-        error_t1 = (t1 - oldT1).ravel()
-        error_t2 = (t2 - oldT2).ravel()
-        diis_errors.append(np.concatenate((error_t1, error_t2)))
         if max_diis > 0 and len(diis_errors) == max_diis:
+            diis_vals_t1.append(deepcopy(t1))
+            diis_vals_t2.append(deepcopy(t2))
+
+            error_t1 = (t1 - oldT1).ravel()
+            error_t2 = (t2 - oldT2).ravel()
+            diis_errors.append(np.concatenate((error_t1, error_t2)))
             diis_size = len(diis_vals_t1)
             del diis_vals_t1[0]
             del diis_vals_t2[0]
@@ -742,7 +738,11 @@ def get_norm_ord_int(thisL, holes, vT1, vS1, str_3NF = 0, sparse = True):
                                                 pnum, hnum, 
                                                 sparse)
         for i in range(len(dum_two_body)):
-            two_body_int[i] += dum_two_body[i]
+            # Check if the contribution has compatible dimensions
+            if dum_two_body[i].ndim > 0 and dum_two_body[i].size > 0:
+                # Ensure shapes match before addition
+                if dum_two_body[i].shape == two_body_int[i].shape:
+                     two_body_int[i] += dum_two_body[i]
         vacEn = get_ref_energy(f_hh, v_hhhh, w_hhh_hhh)
     else:
         vacEn = get_ref_energy(f_hh, v_hhhh, None)
