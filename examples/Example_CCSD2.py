@@ -1,6 +1,7 @@
-import sys, pathlib, os
+import sys
+import pathlib
+import os
 sys.path.append(str(pathlib.Path(os.path.abspath("")) / ".."))
-import numpy as np
 import NuLattice.lattice as lat
 import NuLattice.references as ref
 import NuLattice.CCM.coupled_cluster as ccm
