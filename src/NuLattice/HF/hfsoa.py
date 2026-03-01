@@ -268,7 +268,7 @@ def solve_HF(
         
         diff = abs(erg - erg0)
         if verbose:
-             print(f"Iter {i}: E={erg:.8f}, dE={diff:.6e}")
+             print(f"Iter {i}: E={erg:.8f}, dE={diff:.6e}, dRho={diff_dens:.6e}")
 
         if diff_dens < eps and i > 1:
             converged = True
