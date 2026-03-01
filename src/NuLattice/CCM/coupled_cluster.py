@@ -801,14 +801,20 @@ def get_norm_ordered_ham(thisL, holes, myTkin, mycontact, my3body=None, sparse=T
         dum_two_body = tbu.get_3NF_tbme(w_pph_pph, w_pph_phh, w_pph_hhh, 
                                         w_phh_phh, w_phh_hhh, w_hhh_hhh, 
                                         pnum, hnum, sparse)
-        
-        v_pppp += dum_two_body[0]
-        v_ppph += dum_two_body[1]
-        v_pphh += dum_two_body[2]
-        v_phph += dum_two_body[3]
-        v_phhh += dum_two_body[4]
-        v_hhhh += dum_two_body[5]
-        
+
+        def update_interaction(v, dum_two_body):
+            if hasattr(v, list):
+                return np.array(v) + dum_two_body
+            return v + dum_two_body
+
+        update_interaction(v_pppp, dum_two_body[0])
+        update_interaction(v_ppph, dum_two_body[1])
+        update_interaction(v_pphh, dum_two_body[2])
+        update_interaction(v_phph, dum_two_body[3])
+        update_interaction(v_phhh, dum_two_body[4])
+        update_interaction(v_hhhh, dum_two_body[5])
+
+       
         vacEn = get_ref_energy(f_hh, v_hhhh, w_hhh_hhh)
     else:
         vacEn = get_ref_energy(f_hh, v_hhhh, None)

@@ -317,11 +317,13 @@ def get_3NF_tbme(w_pph_pph, w_pph_phh, w_pph_hhh, w_phh_phh, w_phh_hhh, w_hhh_hh
     
     # Initialize "sparse" blocks as 0-length arrays with correct column width
     if sparse_pppp:
+        # v_pppp = []
         v_pppp = np.empty((0, 5))
     else:
         v_pppp = np.zeros((pnum, pnum, pnum, pnum))
         
     if sparse_ppph:
+        # v_ppph = []
         v_ppph = np.empty((0, 5))
     else:
         v_ppph = np.zeros((pnum, pnum, pnum, hnum))
