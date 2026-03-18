@@ -5,7 +5,6 @@ from . import three_body_utils as tbu
 from NuLattice._types import TwoBodyOperator, ThreeBodyOperator
 import NuLattice.lattice as lat
 
-
 def to_tensor(arr, device=None, dtype=torch.float64):
     """Helper to convert numpy arrays/lists/Operators to Torch tensors."""
     if isinstance(arr, torch.Tensor):
@@ -48,7 +47,7 @@ def to_soa_sparse(sparse_input, device=None, dtype=torch.float64):
 
 def get_fock_matrices(part, hole, myTkin, v_phph, v_phhh, v_hhhh):
     """
-    Constructs Fock matrices using Numpy (setup phase).
+    Constructs Fock matrices using torch (setup phase).
     """
     pnum = len(part)
     hnum = len(hole)
@@ -61,11 +60,10 @@ def get_fock_matrices(part, hole, myTkin, v_phph, v_phhh, v_hhhh):
     f_hh = torch.zeros((hnum, hnum), device=device, dtype=dtype)
 
     h_dense = torch.zeros((n_states, n_states), device=device, dtype=dtype)
-    tkin_indices = torch.tensor([[p, q] for p, q, _ in myTkin], device=device).T
-    tkin_values = torch.tensor(
-        [val for _, _, val in myTkin], device=device, dtype=dtype
-    )
-    h_dense.index_put_((tkin_indices[0], tkin_indices[1]), tkin_values, accumulate=True)
+    p = myTkin.indices[:, 0]
+    q = myTkin.indices[:, 1]
+    tkin_values = myTkin.values
+    h_dense.index_put_((p, q), tkin_values, accumulate=True)
 
     p_idx = torch.tensor(part, device=device)
     h_idx = torch.tensor(hole, device=device)
@@ -167,7 +165,6 @@ def get_norm_ord_int(
 
     return vacEn, fock_mats, raw_2b
 
-
 def get_all_interactions(
     part, hole, mycontact, sparse=False, device=None, dtype=torch.float64
 ):
@@ -181,9 +178,12 @@ def get_all_interactions(
     lookup_h = {idx: i for i, idx in enumerate(hole)}
     lookup_p = {idx: i for i, idx in enumerate(part)}
 
-    v_pppp_list, v_ppph_list = [], []
-    v_pppp = torch.zeros((pnum, pnum, pnum, pnum), device=device, dtype=dtype)
-    v_ppph = torch.zeros((pnum, pnum, pnum, hnum), device=device, dtype=dtype)
+    if sparse:
+        v_pppp_list, v_ppph_list = [], []
+    else:
+        v_pppp = torch.zeros((pnum, pnum, pnum, pnum), device=device, dtype=dtype)
+        v_ppph = torch.zeros((pnum, pnum, pnum, hnum), device=device, dtype=dtype)
+
     v_pphh = torch.zeros((pnum, pnum, hnum, hnum), device=device, dtype=dtype)
     v_phph = torch.zeros((pnum, hnum, pnum, hnum), device=device, dtype=dtype)
     v_phhh = torch.zeros((pnum, hnum, hnum, hnum), device=device, dtype=dtype)
@@ -206,7 +206,10 @@ def get_all_interactions(
             return ((a, b, c, d),), (1.0,)
         return None, None
 
-    for [i1, i2, i3, i4, val] in mycontact:
+    indices = mycontact.indices.detach().cpu().numpy()
+    values = mycontact.values.detach().cpu().numpy()
+    for position, val in zip(indices, values):
+        i1, i2, i3, i4 = position
         k_t = [("h" if i in hole else "p") for i in [i1, i2]]
         b_t = [("h" if i in hole else "p") for i in [i3, i4]]
 
@@ -230,11 +233,10 @@ def get_all_interactions(
             ("p", "h", "h", "h"): (v_phhh, False),
             ("h", "h", "h", "h"): (v_hhhh, False),
         }.get(sector)
-
         if target:
             buf, is_sparse_candidate = target
             perms, signs = get_indices_and_signs(*mapped, sector)
-            base_val = val * s_k * s_b
+            base_val = float(val) * s_k * s_b
 
             for p, s in zip(perms, signs):
                 term = base_val * s
@@ -360,7 +362,7 @@ def t2Iter(
     v_phph,
     v_phhh,
     v_pphh,
-    v_ppph_results,
+    v_ppph,
     v_hhhh,
     sparse=True,
 ):
@@ -393,29 +395,29 @@ def t2Iter(
     X_pp += dgrams.dgram_cdlk_dk_bl(v_pphh, t1)
 
     if sparse:
-        H2 += dgrams.pIJ(v_ppph_results[2])
-        H2 += dgrams.dgram_da_dbij(v_ppph_results[3], t2)
-        H2 += dgrams.dgram_acik_bcjk(v_ppph_results[4], t2)
-        H2 += dgrams.dgram_bijk_ak1(v_ppph_results[5], t1)
-        H2 += dgrams.dgram_bijk_ak2(v_ppph_results[6], t1)
+        H2 += dgrams.pIJ(v_ppph[2])
+        H2 += dgrams.dgram_da_dbij(v_ppph[3], t2)
+        H2 += dgrams.dgram_acik_bcjk(v_ppph[4], t2)
+        H2 += dgrams.dgram_bijk_ak1(v_ppph[5], t1)
+        H2 += dgrams.dgram_bijk_ak2(v_ppph[6], t1)
 
         ret1, ret2 = dgrams.v_pppp_dgrams(v_pppp, t1, t2)
         H2 += 0.5 * ret1
         H2 += 0.5 * dgrams.pIJ(ret2)
     else:
-        H2 += dgrams.pIJ(torch.einsum("abcj, ci -> abij", v_ppph_results, t1))
+        H2 += dgrams.pIJ(torch.einsum("abcj, ci -> abij", v_ppph, t1))
         H2 += -dgrams.pAB(
-            torch.einsum("cdak, ck, dbij -> abij", v_ppph_results, t1, t2)
+            torch.einsum("cdak, ck, dbij -> abij", v_ppph, t1, t2)
         )
         H2 += dgrams.pIJ(
-            dgrams.pAB(torch.einsum("dcak, di, bcjk -> abij", v_ppph_results, t1, t2))
+            dgrams.pAB(torch.einsum("dcak, di, bcjk -> abij", v_ppph, t1, t2))
         )
         H2 += 0.5 * dgrams.pAB(
-            torch.einsum("cdbk, ak, cdij -> abij", v_ppph_results, t1, t2)
+            torch.einsum("cdbk, ak, cdij -> abij", v_ppph, t1, t2)
         )
         H2 += 0.5 * dgrams.pIJ(
             dgrams.pAB(
-                torch.einsum("cdbk, ci, ak, dj -> abij", v_ppph_results, t1, t1, t1)
+                torch.einsum("cdbk, ci, ak, dj -> abij", v_ppph, t1, t1, t1)
             )
         )
         H2 += 0.5 * torch.einsum("abcd, cdij -> abij", v_pppp, t2)
@@ -509,6 +511,8 @@ def ccsd_solver(
             t2 = (mixing * t2 + (1.0 - mixing) * t2_new).clone()
 
         energy = ccsd_energy(f_ph, v_pphh, t2, t1)
+        if verbose:
+            print(f'Step {i + 1}: {energy}', "difference =", abs(energy - prevEnergy) / abs(energy))
         if abs(energy - prevEnergy) / max(1.0, abs(energy)) < eps:
             return energy, t1, t2
 
@@ -570,6 +574,7 @@ def ccsd_solver(
     return energy, t1, t2
 
 
+
 def get_norm_ordered_ham(
     thisL,
     holes,
@@ -600,7 +605,7 @@ def get_norm_ordered_ham(
 
     if my3body is not None:
         # w_ppp_pph, w_ppp_phh, w_pph_pph, w_ppp_hhh, w_pph_phh, w_pph_hhh, w_phh_phh, w_phh_hhh, w_hhh_hhh
-        w_res = tbu.get_3NF(part, hole, my3body, device=device)
+        w_res = tbu.get_3NF(part, hole, my3body.to_list(), device=device)
 
         # 3NF -> 1-Body updates
         dum_fock = tbu.get_3NF_fock(hnum, pnum, w_res[6], w_res[7], w_res[8])
