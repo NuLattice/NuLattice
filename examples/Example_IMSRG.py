@@ -1,59 +1,81 @@
-# Copyright 2025 Matthias Heinz. All rights reserved.
-# Use of this source code is governed by a BSD-style
-# license that can be found in the LICENSE file.
-"""Script to solve the IMSRG(2) equations for He3."""
-__authors__   =  ["Matthias Heinz"]
-__credits__   =  ["Matthias Heinz"]
-__copyright__ = "(c) Matthias Heinz"
-__license__   = "BSD-3-Clause"
-__date__      = "2025-09-03"
+"""
+Script to solve the IMSRG(2) equations with dynamic arguments.
+"""
 
-import sys, pathlib
-sys.path.append(str(pathlib.Path(__file__).parent / ".."))
+import argparse
+import sys
+import matplotlib.pyplot as plt
 
 import NuLattice.lattice as lat
-import NuLattice.references as ref
-
+from NuLattice.constants import ReferenceState
 from NuLattice.IMSRG import normal_ordering
 from NuLattice.IMSRG import ode_solver
 
-# Lattice params
-L = 2
-a_lat = 2.5
-phys_unit = lat.phys_unit(a_lat)
+def main():
+    parser = argparse.ArgumentParser(description="Run a NuLattice IMSRG(2) calculation.")
 
-# Lattice basis
-basis = lat.get_sp_basis(L)
-lattice = lat.get_lattice(L)
+    parser.add_argument("--L", type=int, default=2, help="Lattice size L (L*L*L)")
+    parser.add_argument("--a_lat", type=float, default=2.5, help="Lattice spacing in fm")
+    parser.add_argument("--vT1", type=float, default=-9.0, help="S-wave isospin-triplet contact")
+    parser.add_argument("--vS1", type=float, default=-9.0, help="S-wave spin-triplet contact")
+    parser.add_argument("--cE", type=float, default=6.0, help="Three-body contact (D)")
 
-# Couplings
-vT1 = -9.0
-vS1 = vT1
-D = 6.0
+    parser.add_argument("--s_max", type=float, default=40.0, help="Maximum flow parameter s")
+    parser.add_argument("--eta_crit", type=float, default=1e-3, help="Convergence criterion for eta")
+    parser.add_argument("--plot", action="store_true", help="Display the energy flow plot")
+    
+    parser.add_argument("--element", type=str, default="HE3", 
+                        help="Reference state key (e.g., HE3, HE4, C12)")
 
-# Kinetic energy and potential matrix elements
-kin = lat.Tkin(lattice, L)
-contact_nn = lat.contacts(vT1, vS1, lattice, L)
-contact_3n = lat.NNNcontact(D, lattice, L)
+    args = parser.parse_args()
 
-# Reference state and occupations
-he3_ref = ref.ref_3He_gs
-occs = normal_ordering.create_occupations(basis, he3_ref)
+    # Setup Lattice Environment
+    phys_unit = lat.phys_unit(args.a_lat)
+    basis = lat.get_sp_basis(args.L)
+    lattice = lat.get_lattice(args.L)
 
-# Normal ordered Hamiltonian
-e0, f, gamma = normal_ordering.compute_normal_ordered_hamiltonian_no2b(
-    occs, kin, contact_nn, contact_3n
-)
+    print(f"Lattice: {args.L}^3 | Spacing: {args.a_lat} fm")
 
-# IMSRG(2) solution
-e_imsrg, integration_data = ode_solver.solve_imsrg2(occs, e0, f, gamma, s_max=40, eta_criterion=1e-3)
+    # Kinetic energy and potential matrix elements
+    kin = lat.Tkin(lattice, args.L)
+    contact_nn = lat.contacts(args.vT1, args.vS1, lattice, args.L)
+    contact_3n = lat.NNNcontact(args.cE, lattice, args.L)
 
-print("E_IMSRG = {:>12.5f} (lattice units), {:>13.4f} MeV".format(e_imsrg, e_imsrg * phys_unit))
+    try:
+        ref_state = getattr(ReferenceState, f"{args.element.upper()}_GS")
+    except AttributeError:
+        print(f"Error: Reference state for '{args.element}' not found in constants.")
+        sys.exit(1)
 
-import matplotlib.pyplot as plt
+    occs = normal_ordering.create_occupations(basis, ref_state)
+    e0, f, gamma = normal_ordering.compute_normal_ordered_hamiltonian_no2b(
+        occs, kin, contact_nn, contact_3n
+    )
 
-s_vals = [x[0] for x in integration_data]
-e_vals = [x[1] for x in integration_data]
-plt.plot(s_vals, e_vals)
-plt.xlim(0,10.0)
-plt.show()
+    print(f"Initial E0: {e0 * phys_unit:.4f} MeV")
+
+    e_imsrg, integration_data = ode_solver.solve_imsrg2(
+        occs, e0, f, gamma, 
+        s_max=args.s_max, 
+        eta_criterion=args.eta_crit
+    )
+
+    print("-" * 30)
+    print(f"Final IMSRG Energy: {e_imsrg * phys_unit:.6f} MeV")
+    print(f"Energy (Lattice Units): {e_imsrg:.6f}")
+
+    if args.plot:
+        s_vals = [x[0] for x in integration_data]
+        e_vals = [x[1] for x in integration_data]
+        plt.figure(figsize=(8, 5))
+        plt.plot(s_vals, e_vals, label=f"{args.element} Flow")
+        plt.xlabel("Flow Parameter (s)")
+        plt.ylabel("Energy (Lattice Units)")
+        plt.title(f"IMSRG(2) Energy Flow: {args.element}")
+        plt.xlim(0, min(10.0, args.s_max))
+        plt.grid(True)
+        plt.legend()
+        plt.show()
+
+if __name__ == "__main__":
+    main()

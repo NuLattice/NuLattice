@@ -1,67 +1,79 @@
-import numpy as np
+import argparse
 import sys
-import pathlib
 
-sys.path.append(str(pathlib.Path(__file__).parent / ".."))
-
-# import NuLattice.HF.hfsoa as hf
+import numpy as np
 
 import NuLattice.HF.hartree_fock as hf
 import NuLattice.lattice as lat
-import NuLattice.references as ref
+from NuLattice.constants import ReferenceState
 
-# Initialize lattice
-thisL = 8  # L*L*L lattice
-a_lat = 2.5  # lattice spacing in fm
-phys_unit = lat.phys_unit(a_lat)
+def main():
+    parser = argparse.ArgumentParser(description="Run a NuLattice Hartree-Fock calculation.")
 
-my_basis = lat.get_sp_basis(thisL)
-nstat = len(my_basis)
-print("number of single-particle states =", nstat)
-lattice = lat.get_lattice(thisL)
-nsite = len(lattice)
-print("number of lattice sites =", nsite)
+    parser.add_argument("--L", type=int, default=8, help="Lattice size L (L*L*L)")
+    parser.add_argument("--a_lat", type=float, default=2.5, help="Lattice spacing in fm")
+    
+    parser.add_argument("--vT1", type=float, default=-9.0, help="S-wave isospin-triplet contact")
+    parser.add_argument("--vS1", type=float, default=-9.0, help="S-wave spin-triplet contact")
+    parser.add_argument("--cE", type=float, default=6.0, help="Three-body contact")
 
-# Compute operators for kinetic energy, two-body contacts, and three-body contact
+    parser.add_argument("--eps", type=float, default=1e-8, help="Convergence threshold")
+    parser.add_argument("--mix", type=float, default=0.7, help="Mixing parameter for density iterations")
+    parser.add_argument("--max_iter", type=int, default=100, help="Maximum HF iterations")
+    parser.add_argument("--quiet", action="store_false", dest="verbose", default=True, help="Suppress iteration output")
 
-vT1 = -9.0  # S-wave isospin-triplet contact
-vS1 = -9.0  # S-wave spin-triplet contact
-cE = 6.0  # three-body contact
+    parser.add_argument("--element", type=str, default="O16", 
+                        help="Reference state key (e.g., O16, C12, HE4)")
 
+    args = parser.parse_args()
 
-myTkin = lat.Tkin(lattice, thisL)
-print("number of matrix elements from kinetic energy", len(myTkin))
+    phys_unit = lat.phys_unit(args.a_lat)
+    my_basis = lat.get_sp_basis(args.L)
+    lattice = lat.get_lattice(args.L)
+    
+    nstat = len(my_basis)
+    nsite = len(lattice)
 
-mycontact = lat.contacts(vT1, vS1, lattice, thisL)
-print("number of matrix elements from two-body contacts", len(mycontact))
+    print(f"Lattice: {args.L}^3 | Spacing: {args.a_lat} fm")
+    print(f"SP States: {nstat} | Lattice Sites: {nsite}")
 
-my3body = lat.NNNcontact(cE, lattice, thisL)
-print("number of matrix elements from three-body contacts", len(my3body))
+    myTkin = lat.Tkin(lattice, args.L)
+    mycontact = lat.contacts(args.vT1, args.vS1, lattice, args.L)
+    my3body = lat.NNNcontact(args.cE, lattice, args.L)
 
-# we compute oxygen-16
-my_ref = ref.ref_16O_gs
-hole = ref.reference_to_holes(my_ref, my_basis)
-hnum = len(hole)
+    print(f"Matrix elements - Tkin: {len(myTkin)}, 2-body: {len(mycontact)}, 3-body: {len(my3body)}")
 
-dens = hf.init_density(nstat, hole)
-print("number of particles:", np.trace(dens), "compare with", hnum)
+    try:
+        attr_name = f"{args.element.upper()}_GS"
+        my_ref = getattr(ReferenceState, attr_name)
+    except AttributeError:
+        print(f"Error: Reference state for '{args.element}' not found.")
+        sys.exit(1)
 
-eps = 1.0e-8
-mix = 0.7
-max_iter = 100
-verbose = True
-erg, trafo, conv = hf.solve_HF(
-    myTkin,
-    mycontact,
-    my3body,
-    dens,
-    mix=mix,
-    eps=eps,
-    max_iter=max_iter,
-    verbose=verbose,
-)
+    hole = ReferenceState.holes(my_ref, my_basis)
+    hnum = len(hole)
 
-if conv:
-    print("HF energy (MeV) = ", erg * phys_unit)
-else:
-    print("HF did not converge")
+    dens = hf.init_density(nstat, hole)
+    print(f"Target Particle Number: {hnum} | Initial Trace: {np.trace(dens)}")
+
+    erg, trafo, conv = hf.solve_HF(
+        myTkin,
+        mycontact,
+        my3body,
+        dens,
+        mix=args.mix,
+        eps=args.eps,
+        max_iter=args.max_iter,
+        verbose=args.verbose,
+    )
+
+    print("-" * 30)
+    if conv:
+        final_energy = erg * phys_unit
+        print("HF Convergence: SUCCESS")
+        print(f"Final HF Energy: {final_energy:.6f} MeV")
+    else:
+        print("HF Convergence: FAILED (Check mixing or max_iter)")
+
+if __name__ == "__main__":
+    main()
