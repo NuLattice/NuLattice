@@ -1,9 +1,10 @@
 import torch
 
+from NuLattice._torch_types import TwoBodyOperator, ThreeBodyOperator
+import NuLattice.lattice as lat
+
 from . import ccDgrams as dgrams
 from . import three_body_utils as tbu
-from NuLattice._types import TwoBodyOperator, ThreeBodyOperator
-import NuLattice.lattice as lat
 
 def to_tensor(arr, device=None, dtype=torch.float64):
     """Helper to convert numpy arrays/lists/Operators to Torch tensors."""

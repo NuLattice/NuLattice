@@ -1,6 +1,6 @@
 import torch
 from typing import List, Tuple, Union
-from NuLattice._types import ThreeBodyOperator, TwoBodyOperator
+from NuLattice._torch_types import ThreeBodyOperator, TwoBodyOperator
 
 ThreeBodyList = List[List[Union[int, float]]]
 
