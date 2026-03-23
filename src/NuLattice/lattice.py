@@ -8,10 +8,7 @@ __copyright__ = "(c) Thomas Papenbrock and Maxwell Rothman and Ben Johnson"
 __license__ = "BSD-3-Clause"
 __date__ = "2025-07-26"
 
-from ._constants import (
-    HBARC,
-    MASS,
-)
+from .constants import HBARC, MASS
 
 from ._types import (
     LatticeState,

@@ -1,4 +1,4 @@
-from ._constants import HBARC, MASS
+from .constants import HBARC, MASS
 
 # old types
 from ._types import (
