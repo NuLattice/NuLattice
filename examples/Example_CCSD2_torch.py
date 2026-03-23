@@ -1,8 +1,11 @@
 import argparse
+import torch
 
-import NuLattice.lattice as lat
+import NuLattice.lattice_soa as lat
 import NuLattice.references as ref
-import NuLattice.CCM.coupled_cluster as ccm
+import NuLattice.CCM.soa.coupled_cluster as ccm
+
+device = torch.device('cuda')
 
 def main():
     parser = argparse.ArgumentParser(description="Run a NuLattice CCM calculation with custom parameters.")
@@ -39,13 +42,20 @@ def main():
 
     print(f"Matrix elements - Tkin: {len(myTkin)}, 2-body: {len(mycontact)}, 3-body: {len(my3body)}")
 
+    # reference state
     ref_state = ref.ref_16O_gs
+
     refEn, fock_mats, two_body_int = ccm.get_norm_ordered_ham(
-        args.L, ref_state, myTkin, mycontact, my3body, 
-        sparse=args.sparse, NO2B=True
+        args.L,
+        ref_state,
+        myTkin.to_torch(),
+        mycontact.to_torch(),
+        my3body.to_torch(),
+        sparse=args.sparse,
+        NO2B=True
     )
 
-    print(f"Energy of reference: {refEn * phys_unit:.4f} MeV")
+    print(f"Energy of reference: {refEn*phys_unit} MeV")
 
     corrEn, t1, t2 = ccm.ccsd_solver(
         fock_mats, 
