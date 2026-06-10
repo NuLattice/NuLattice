@@ -17,14 +17,22 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages=["src/NuLattice"]
 
+
 [dependency-groups]
 dev = [
     "jedi-language-server>=0.42.0",
     "pytest>=8.3.5",
     "pytest-benchmark>=4.0.0",
     "ruff>=0.15.1",
-    "numba",
     "matplotlib>=3.7.5",
     "pytest-memray>=1.8.0",
-    "torch>=2.0.0", # this does require torch.compile
+]
+
+numba = [
+    "numba",
+]
+
+torch = [
+    "torch",
+    "pytorch-triton-rocm",
 ]
