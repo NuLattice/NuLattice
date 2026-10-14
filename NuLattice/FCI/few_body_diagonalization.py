@@ -3,7 +3,7 @@ module provides functions to build a many-body basis and to construct
 Hamiltonian matrices stored in compressed storage row csr format.
 """
 __authors__   =  "Thomas Papenbrock"
-__credits__   =  ["Thomas Papenbrock"]
+__credits__   =  ["Thomas Papenbrock, Rongzhe Hu"]
 __copyright__ = "(c) Thomas Papenbrock"
 __license__   = "BSD-3-Clause"
 __date__      = "2025-07-26"
@@ -482,7 +482,7 @@ def fill_2b_op_in_4b_basis(lookup,operator,nstat):
                 elif j1 < p3 and p3 < j2 and j2 < p4:
                     stat2=(j1,p3,j2,p4)
                     sign2=-1.0
-                elif i1 < p3 and p4 < j2:
+                elif j1 < p3 and p4 < j2:
                     stat2=(j1,p3,p4,j2)
                     sign2=1.0
                 elif j2 < p3:
