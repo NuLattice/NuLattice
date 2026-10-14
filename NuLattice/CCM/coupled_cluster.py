@@ -54,46 +54,39 @@ def get_fock_matrices(part,hole,myTkin,v_phph,v_phhh,v_hhhh, dtype=None):
 
 
     for a in range(pnum):
-        ka=part[a]
+        ka = part[a]
         for b in range(pnum):
-            kb=part[b]
-            labels=(ka,kb)
-            val = lookup1b.get( labels )
-            if val == None:
-                continue
-            else:
-                f_pp[a,b] = val
+            kb = part[b]
+            labels = (ka, kb)
+            val = lookup1b.get(labels)
+            if val is not None:
+                f_pp[a, b] = val
+            f_pp[a, b] += np.sum([v_phph[a, i, b, i] for i in range(hnum)])
 
-            f_pp[a,b] = f_pp[a,b] + np.sum( [ v_phph[a,i,b,i] for i in range(hnum) ] )
-                   
     # Build particle-hole fock matrix
     for a in range(pnum):
-        ka=part[a]
+        ka = part[a]
         for b in range(hnum):
-            kb=hole[b]
-            labels=(ka,kb)
-            val = lookup1b.get( labels )
-            if val == None:
-                continue
-            else:
-                f_ph[a,b] = val
+            kb = hole[b]
+            labels = (ka, kb)
+            val = lookup1b.get(labels)
+            if val is not None:
+                f_ph[a, b] = val
 
-            f_ph[a,b] = f_ph[a,b] + np.sum( [ v_phhh[a,i,b,i] for i in range(hnum) ] )       
-        
+            f_ph[a, b] += np.sum([v_phhh[a, i, b, i] for i in range(hnum)])
+
     # Build hole-hole fock matrix
     for a in range(hnum):
-        ka=hole[a]
+        ka = hole[a]
         for b in range(hnum):
-            kb=hole[b]
-            labels=(ka,kb)
-            val = lookup1b.get( labels )
-            if val == None:
-                continue
-            else:
-                f_hh[a,b] = val
+            kb = hole[b]
+            labels = (ka, kb)
+            val = lookup1b.get(labels)
+            if val is not None:
+                f_hh[a, b] = val
 
-            f_hh[a,b] = f_hh[a,b] + np.sum( [ v_hhhh[a,i,b,i] for i in range(hnum) ] )
-            
+            f_hh[a, b] += np.sum([v_hhhh[a, i, b, i] for i in range(hnum)])
+
     return f_pp, f_ph, f_hh
 
 def get_all_interactions(part,hole,mycontact, sparse = False, dtype = None):
@@ -250,7 +243,7 @@ def get_all_interactions(part,hole,mycontact, sparse = False, dtype = None):
                 vint = v_hhhh
             else:
                 vint = None
-
+        
         if vint is not None:
             for i, indx in enumerate(indices):
                 sign = signs[i]
@@ -551,7 +544,7 @@ def t2Iter(t1, t2, f_ph, f_hh, f_pp, v_pppp, v_phph, v_phhh, v_pphh,
     
     return t2
 
-def ccsd_solver(fock_mats, two_body_int, t1initial=None, eps = 1e-8, maxSteps = 1000, max_diis = 10, 
+def ccsd_solver(fock_mats, two_body_int, t1initial=None, t2initial=None, eps = 1e-8, maxSteps = 1000, max_diis = 10, 
                 delta = 0, mixing = 0.5, verbose = False, sparse = True, ccs = False, dtype = None): 
     """
     Solves for the correlation energy of a system using the CCSD equations.
@@ -561,6 +554,10 @@ def ccsd_solver(fock_mats, two_body_int, t1initial=None, eps = 1e-8, maxSteps = 
     :type fock_mats:    list[numpy array]
     :param two_body_int:    two body interaction matrices; if sparse the first two elements will be lists instead of numpy arrays
     :type two_body_int: list[numpy array]
+    :param t1initial:   Optional; initial value to set t1 to instead of the perturbative guess, use None to use the guess
+    :type t1initial:    numpy array
+    :param t2initial:   Optional; initial value to set t2 to instead of the perturbative guess, use None to use the guess
+    :type t2initial:    numpy array
     :param eps:     Optional; max relative error
     :type eps:      float
     :param maxSteps:    Optional; max number of iterations to take
@@ -590,8 +587,10 @@ def ccsd_solver(fock_mats, two_body_int, t1initial=None, eps = 1e-8, maxSteps = 
         t1 = t1Init(f_ph, f_pp, f_hh, delta)
     else:
         t1 = t1initial
-    if ccs or t1initial is not None:
+    if ccs:
         t2 = np.zeros_like(v_pphh)
+    elif t2initial is not None:
+        t2 = t2initial
     else:
         t2 = t2Init(f_pp, f_hh, v_pphh, delta)
 
@@ -825,4 +824,3 @@ def get_norm_ordered_ham(thisL, holes, myTkin, mycontact, my3body=None, sparse=T
         res = NO2B_stuff, three_body_int
 
     return res
-

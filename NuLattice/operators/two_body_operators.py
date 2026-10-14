@@ -45,6 +45,8 @@ def rho_mult_NO(rho_1, rho_2, mult, max_mem = 0):
     for a, c, v in zip(rho_1.row, rho_1.col, rho_1.data):
         for b, d, w in zip(rho_2.row, rho_2.col, rho_2.data):                
             matele = mult * v * w
+            if abs(np.real_if_close(matele)) < 1e-15:
+                continue
             if a < b and c < d:
                 tmp_col.append(a + b * dim)
                 tmp_row.append(c + d * dim)
@@ -222,6 +224,8 @@ def onePionEx(myL, bpi, a_lat, lattice, verbose = False, mult = 1,g_A=consts.g_A
         for a, c, v in zip(rho1.row, rho1.col, rho1.data):
             for b, d, w in zip(rho2.row, rho2.col, rho2.data):     
                 matele = f_SS_val * v * w * scale / a_lat
+                if abs(np.real_if_close(matele)) < 1e-15:
+                    continue
                 if a < b and c < d:
                     tmp_col.append(a + b * dim)
                     tmp_row.append(c + d * dim)
